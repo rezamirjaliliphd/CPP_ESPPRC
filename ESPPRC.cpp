@@ -216,7 +216,7 @@ int main() {
         manager.addLabel(newLabel);
     }
 
-    // // Simulate adding labels
+    // Simulate adding labels
     // Label label1 = initialLabel;
     // label1.addNode(1, 10.0, {5.0, 2.0});
     // manager.addLabel(label1);
