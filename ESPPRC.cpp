@@ -1,3 +1,9 @@
+#include "gurobi_c++.h"
+#include <cassert>
+#include <cstdlib>
+#include <cmath>
+#include <sstream>
+
 #include <iostream>
 #include <vector>
 #include <functional>
@@ -5,16 +11,20 @@
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
+#include<numeric>
+
 
 enum class NodeStatus {
     UNVISITED,
     OPEN,
     CLOSED
 };
+
 enum class LabelStatus {
     DOMINATED,
     INCOMPARABLE
 };
+
 // Class to represent a edge
 class Edge {
 public:
@@ -22,7 +32,7 @@ public:
     int to;            // Destination node
     double cost;       // Cost of the edge
     std::vector<double> resources; // Resource consumption of the edge
-    
+
 
     // Constructor
     Edge(int f, int t, double c, const std::vector<double>& r) : from(f), to(t), cost(c), resources(r) {}
@@ -59,7 +69,37 @@ public:
             }
         }
     }
+
+    std::vector<std::vector<double>> getMinWeights(int n, int num_res) {
+        // outputing a vector of minimum resources' consumptions by node 
+        std::vector<std::vector<double>> min_weight(n, std::vector<double>(num_res, 100.0));
+        for (int i = 0; i < n; i++) {
+            for (const Edge& e : adjList[i]) {
+                for (int k = 0; k < e.resources.size(); k++) {
+                    if (min_weight[i][k] > e.resources[k]) {
+                        min_weight[i][k] = e.resources[k];
+                    }
+                }
+            }
+        }
+        return min_weight;
+    }
+
+    std::vector<double> getMaxValue(int n, int num_res) {
+        // outputing a vector of maximum value by node 
+        std::vector<double> max_value(n, 100.0);
+        for (int i = 0; i < n; i++) {
+            for (const Edge& e : adjList[i]) {
+                if (max_value[i] > e.cost) {
+                    max_value[i] = e.cost;
+                }
+
+            }
+        }
+        return max_value;
+    }
 };
+
 
 // Class to represent a label (partial path)
 class Label {
@@ -69,15 +109,16 @@ public:
     double cost;                      // Cost of the path
     std::vector<double> resources;    // Resource consumption of the path
     std::vector<bool> reachable;      // Reachability of the nodes
-    bool half_point = false;   // Half point reached or not
-    // Constructor
-    
-    Label(const int n,const std::vector<int>& p, double c, const std::vector<double>& r) 
-        : vertex(p.back()), path(p), cost(c), resources(r), reachable(n, true) {
-            reachable[0] = false;
-        }
+    bool half_point = false;   // Half point reached or not 
 
-    Label(const Label& parent, int v) 
+
+    // Constructor
+    Label(const int n, const std::vector<int>& p, double c, const std::vector<double>& r)
+        : vertex(p.back()), path(p), cost(c), resources(r), reachable(n, true) {
+        reachable[0] = false;
+    }
+
+    Label(const Label& parent, int v)
         : vertex(v), path(parent.path), cost(parent.cost), resources(parent.resources), reachable(parent.reachable) {}
 
     // Add a node to the path
@@ -91,30 +132,60 @@ public:
             }
             for (const Edge& e : graph.getNeighbors(edge.to)) {
                 for (size_t i = 0; i < resources.size(); ++i) {
-                    if (resources[i] + e.resources[i] > res_max[i]){
+                    if (resources[i] + e.resources[i] > res_max[i]) {
                         reachable[e.to] = false;
                         break;
                     }
                 }
             }
-            
+
         }
     }
 
     // Reaches half=point
     void reachHalfPoint(const std::vector<double>& res_max) {
         for (size_t i = 0; i < resources.size(); ++i) {
-            if (resources[i] >= res_max[i]/2){
+            if (resources[i] >= res_max[i] / 2) {
                 half_point = true;
                 break;
             }
         }
     }
 
-    double getLB(){
-        std::cout << "Calculating LB " << std::endl;
-        return -1.0;
+    double getLB(const std::vector<double>& res_max,
+        const int n,
+        const std::vector<std::vector<double>>& min_weight,
+        const std::vector<double>& max_value) {
+
+        GRBEnv env = GRBEnv();
+        env.set(GRB_IntParam_OutputFlag, 0);
+        GRBModel model = GRBModel(env);
+        std::vector<int> Items;
+
+
+        GRBLinExpr obj = 0;
+        std::vector<GRBVar> x(n);
+        for (int i = 0; i < reachable.size(); i++) {
+            int ub = reachable[i] ? 1 : 0;
+            x[i] = model.addVar(0.0, ub, 0, GRB_BINARY, "x" + std::to_string(i));
+            obj -= x[i] * max_value[i];
+        }
+
+        model.setObjective(obj, GRB_MAXIMIZE);
+
+        for (int k = 0; k < res_max.size(); k++) {
+            GRBLinExpr cntr = 0;
+            for (int j = 0; j < x.size(); j++) {
+                cntr += x[j] * min_weight[j][k];
+            }
+            model.addConstr(cntr <= res_max[k], "resource "+std::to_string(k));
+            
+        }
+        // Optimize the model
+        model.optimize();
+        return model.get(GRB_DoubleAttr_ObjVal);
     }
+    
 
 
     // Display the label
@@ -129,30 +200,30 @@ public:
         }
         std::cout << "]\n";
         for (size_t i = 0; i < reachable.size(); ++i) {
-            if (reachable[i]){
+            if (reachable[i]) {
                 std::cout << "Node " << i << " is reachable\n";
             }
         }
-        
+
     }
 
     // Compare two labels based on cost
     LabelStatus dominance(const Label& rival) const {
-        if (rival.cost>=cost){
+        if (rival.cost >= cost) {
             for (size_t i = 0; i < resources.size(); ++i) {
-                if (rival.resources[i]<resources[i]){
+                if (rival.resources[i] < resources[i]) {
                     return LabelStatus::INCOMPARABLE;
                 }
             }
             for (size_t i = 0; i < reachable.size(); ++i) {
-                if (rival.reachable[i] < reachable[i]){
+                if (rival.reachable[i] < reachable[i]) {
                     return LabelStatus::INCOMPARABLE;
                 }
             }
             return LabelStatus::DOMINATED;
 
         }
-        return LabelStatus::INCOMPARABLE;         
+        return LabelStatus::INCOMPARABLE;
     }
 };
 
@@ -188,37 +259,38 @@ public:
 int main() {
     // Initialize a label manager
     LabelManager manager;
-    int n= 5, m =2;
-    
+    int n = 5, m = 2;
+
 
     // Initialize random seed
     std::srand(std::time(nullptr));
     // Create a graph
     Graph graph(n);
     for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n ; ++j) {
-            if (i!=j){
+        for (int j = 0; j < n; ++j) {
+            if (i != j) {
                 // Generate m non-negative random numbers
                 std::vector<double> randomResources(m);
                 for (int k = 0; k < m; ++k) {
-                    if (static_cast<double>(std::rand()) / RAND_MAX>0.5){
-                    randomResources[k] = static_cast<double>(std::rand()) / RAND_MAX*5;}
-                    else{
-                        randomResources[k] = ceil(static_cast<double>(std::rand()) / RAND_MAX*5);
+                    if (static_cast<double>(std::rand()) / RAND_MAX > 0.5) {
+                        randomResources[k] = static_cast<double>(std::rand()) / RAND_MAX * 5;
                     }
-                graph.addEdge(i, j, (static_cast<double>(std::rand()) / RAND_MAX-0.5)*10, randomResources);
-            }
+                    else {
+                        randomResources[k] = ceil(static_cast<double>(std::rand()) / RAND_MAX * 5);
+                    }
+                    graph.addEdge(i, j, (static_cast<double>(std::rand()) / RAND_MAX - 0.5) * 10, randomResources);
+                }
             }
         }
     }
     graph.display();
     // Create initial label (starting from node 0)
-    Label initialLabel(n, {0}, 0.0, {0.0, 0.0}); // Path: {0}, Cost: 0.0, Resources: [0.0, 0.0]
+    Label initialLabel(n, { 0 }, 0.0, { 0.0, 0.0 }); // Path: {0}, Cost: 0.0, Resources: [0.0, 0.0]
     manager.addLabel(initialLabel);
-    for(const Edge& edge : graph.getNeighbors(0)){
+    for (const Edge& edge : graph.getNeighbors(0)) {
         Label newLabel(initialLabel);
-        newLabel.addNode(edge, graph, {5.0, 5.0});
-        newLabel.reachHalfPoint({5.0, 5.0});
+        newLabel.addNode(edge, graph, { 5.0, 5.0 });
+        newLabel.reachHalfPoint({ 5.0, 5.0 });
         manager.addLabel(newLabel);
     }
 
@@ -248,3 +320,4 @@ int main() {
 
     return 0;
 }
+
