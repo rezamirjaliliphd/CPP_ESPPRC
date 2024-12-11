@@ -64,6 +64,7 @@ public:
 // Class to represent a label (partial path)
 class Label {
 public:
+    int  vertex;                     // Current vertex
     std::vector<int> path;            // Nodes in the current path
     double cost;                      // Cost of the path
     std::vector<double> resources;    // Resource consumption of the path
@@ -72,12 +73,12 @@ public:
     // Constructor
     
     Label(const int n,const std::vector<int>& p, double c, const std::vector<double>& r) 
-        : path(p), cost(c), resources(r), reachable(n, true) {
+        : vertex(p.back()), path(p), cost(c), resources(r), reachable(n, true) {
             reachable[0] = false;
         }
 
-    Label(const Label& parent) 
-        : path(parent.path), cost(parent.cost), resources(parent.resources), reachable(parent.reachable) {}
+    Label(const Label& parent, int v) 
+        : vertex(v), path(parent.path), cost(parent.cost), resources(parent.resources), reachable(parent.reachable) {}
 
     // Add a node to the path
     void addNode(const Edge& edge, const Graph& graph, const std::vector<double>& res_max) {
@@ -108,6 +109,11 @@ public:
                 break;
             }
         }
+    }
+
+    double getLB(){
+        std::cout << "Calculating LB " << std::endl;
+        return -1.0;
     }
 
 
