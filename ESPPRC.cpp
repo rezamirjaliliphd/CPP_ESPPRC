@@ -1,9 +1,6 @@
 #include "gurobi_c++.h"
 #include <cassert>
-#include <cstdlib>
-#include <cmath>
 #include <sstream>
-
 #include <iostream>
 #include <vector>
 #include <functional>
@@ -12,8 +9,13 @@
 #include <ctime>
 #include <cmath>
 #include<numeric>
+#include<unordered_map>
+#include<climits>
 
-
+/*
+* TODO: for Label.add_Node based on the direction extend the labels
+* TODO: Since the labels turened into the unoredered map, then make sure the 
+*/
 enum class NodeStatus {
     UNVISITED,
     OPEN,
@@ -109,17 +111,18 @@ public:
     double cost;                      // Cost of the path
     std::vector<double> resources;    // Resource consumption of the path
     std::vector<bool> reachable;      // Reachability of the nodes
-    bool half_point = false;   // Half point reached or not 
+    bool half_point = false;   // Half point reached or not
+    bool direction;
 
 
     // Constructor
-    Label(const int n, const std::vector<int>& p, double c, const std::vector<double>& r)
-        : vertex(p.back()), path(p), cost(c), resources(r), reachable(n, true) {
+    Label(const int n, const std::vector<int>& p, double c, const std::vector<double>& r, const bool dr)
+        : vertex(p.back()), path(p), cost(c), resources(r), reachable(n, true), direction(dr) {
         reachable[0] = false;
     }
 
     Label(const Label& parent, int v)
-        : vertex(v), path(parent.path), cost(parent.cost), resources(parent.resources), reachable(parent.reachable) {}
+        : vertex(v), path(parent.path), cost(parent.cost), resources(parent.resources), reachable(parent.reachable), direction(parent.direction) {}
 
     // Add a node to the path
     void addNode(const Edge& edge, const Graph& graph, const std::vector<double>& res_max) {
@@ -141,7 +144,7 @@ public:
 
         }
     }
-
+    
     // Reaches half=point
     void reachHalfPoint(const std::vector<double>& res_max) {
         for (size_t i = 0; i < resources.size(); ++i) {
@@ -230,17 +233,54 @@ public:
 // Class to manage labels
 class LabelManager {
 private:
-    std::vector<Label> labels; // Collection of labels
+    std::unordered_map<int,std::vector<Label>> fw_labels, bw_labels; // Collection of labels
+    /* 
+       The structure is std::unordered_map<vertex(int), label(Label)> 
+    */ 
 
 public:
-    // Add a label
-    void addLabel(const Label& label) {
-        labels.push_back(label);
-    }
+    void InSert(const Label& label) {
+        unsigned int index;
+        int v = label.vertex;
+        if (label.direction) {
+            // if label's cost smaller than index =0;
+            if (label.cost < fw_labels.at(v)[0].cost) {
+                fw_labels.at(v).insert(fw_labels.at(v).begin(),label);
+            }
+            // if label's cost greater than the last label
+            if (label.cost > fw_labels.at(v).back().cost) {
+                fw_labels.at(v).push_back(label);
+            }
+            for (int i = 0; i < fw_labels.at(v).size()-1; i++) {
+                if (label.cost >= fw_labels.at(v)[i].cost&& label.cost <= fw_labels.at(v)[i+1].cost) {
+                    fw_labels.at(v).insert(fw_labels.at(v).begin()+i+1,label);
+                }
+            }
+        }
+        else {
+            // if label's cost smaller than index =0;
+            if (label.cost < bw_labels.at(v)[0].cost) {
+                bw_labels.at(v).insert(bw_labels.at(v).begin(), label);
+            }
+            // if label's cost greater than the last label
+            if (label.cost > bw_labels.at(v).back().cost) {
+                bw_labels.at(v).push_back(label);
+            }
+            for (int i = 0; i < bw_labels.at(v).size() - 1; i++) {
+                if (label.cost >= bw_labels.at(v)[i].cost && label.cost <= bw_labels.at(v)[i + 1].cost) {
+                    bw_labels.at(v).insert(bw_labels.at(v).begin() + i + 1, label);
+                }
+            }
 
+        }
+        
+    }
     // Get all labels
-    const std::vector<Label>& getLabels() const {
-        return labels;
+    const std::unordered_map<int, std::vector<Label>>& getLabels(bool direction) const {
+        if (direction) {
+            return fw_labels;
+        }
+        return bw_labels;
     }
 
     // Prune labels based on a condition
