@@ -13,8 +13,11 @@
 #include<climits>
 
 /*
-* TODO: for Label.add_Node based on the direction extend the labels
-* TODO: Since the labels turened into the unoredered map, then make sure the 
+* TODO: When adding a new node to a label, calculate the estimated cost of the complete path and compare it with UB 
+
+* TODO: Since the labels turened into the unoredered map, then make sure the
+* TODO: In the course of updating UB, make sure to get rid of the labels whose LB are greater than new UB
+* TODO: Concatenate the forward and backward labels
 */
 enum class NodeStatus {
     UNVISITED,
@@ -46,8 +49,15 @@ private:
     std::vector<std::vector<Edge>> adjList; // Adjacency list 
 
 public:
+    int num_nodes;
+	int num_res;
+    std::vector<std::vector<double>> min_weight;
+	std::vector<double> max_value;
     // Constructor
-    Graph(int n) : adjList(n) {}
+    Graph(int n, int m) : adjList(n),num_nodes(n),num_res(m) {
+        std::vector<std::vector<double>> min_weight(n, std::vector<double>(m, 100.0));
+        std::vector<double> max_value(n, 100.0);
+    }
 
     // Add an edge to the graph
     void addEdge(int from, int to, double cost, const std::vector<double>& resources) {
@@ -72,10 +82,10 @@ public:
         }
     }
 
-    std::vector<std::vector<double>> getMinWeights(int n, int num_res) {
+    std::vector<std::vector<double>> getMinWeights() {
         // outputing a vector of minimum resources' consumptions by node 
-        std::vector<std::vector<double>> min_weight(n, std::vector<double>(num_res, 100.0));
-        for (int i = 0; i < n; i++) {
+        
+        for (int i = 0; i < num_nodes; i++) {
             for (const Edge& e : adjList[i]) {
                 for (int k = 0; k < e.resources.size(); k++) {
                     if (min_weight[i][k] > e.resources[k]) {
@@ -86,19 +96,15 @@ public:
         }
         return min_weight;
     }
-
-    std::vector<double> getMaxValue(int n, int num_res) {
+    void getMaxValue() {
         // outputing a vector of maximum value by node 
-        std::vector<double> max_value(n, 100.0);
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < num_nodes; i++) {
             for (const Edge& e : adjList[i]) {
                 if (max_value[i] > e.cost) {
                     max_value[i] = e.cost;
                 }
-
             }
         }
-        return max_value;
     }
 };
 
@@ -113,6 +119,8 @@ public:
     std::vector<bool> reachable;      // Reachability of the nodes
     bool half_point = false;   // Half point reached or not
     bool direction;
+    double LB;
+	LabelStatus status = LabelStatus::INCOMPARABLE;
 
 
     // Constructor
@@ -122,29 +130,34 @@ public:
     }
 
     Label(const Label& parent, int v)
-        : vertex(v), path(parent.path), cost(parent.cost), resources(parent.resources), reachable(parent.reachable), direction(parent.direction) {}
+        : vertex(v), path(parent.path), cost(parent.cost), resources(parent.resources), reachable(parent.reachable), direction(parent.direction) {
+    }
 
     // Add a node to the path
-    void addNode(const Edge& edge, const Graph& graph, const std::vector<double>& res_max) {
+    void addNode(const Edge& edge, const Graph& graph, const std::vector<double>& res_max, const double UB) {
         if (edge.from == path.back()) {
             path.push_back(edge.to);
             reachable[edge.to] = false;
             cost += edge.cost;
-            for (size_t i = 0; i < resources.size(); ++i) {
-                resources[i] += edge.resources[i];
-            }
-            for (const Edge& e : graph.getNeighbors(edge.to)) {
+			// Calculate LB, and compare it with UB
+			LB = getLB(res_max,graph.num_nodes,graph.min_weight,graph.max_value)+cost;
+            if (LB <= UB) {
                 for (size_t i = 0; i < resources.size(); ++i) {
-                    if (resources[i] + e.resources[i] > res_max[i]) {
-                        reachable[e.to] = false;
-                        break;
+                    resources[i] += edge.resources[i];
+                }
+                for (const Edge& e : graph.getNeighbors(edge.to)) {
+                    for (size_t i = 0; i < resources.size(); ++i) {
+                        if (resources[i] + e.resources[i] > res_max[i]) {
+                            reachable[e.to] = false; 
+                            break;
+                        }
                     }
                 }
             }
 
         }
     }
-    
+
     // Reaches half=point
     void reachHalfPoint(const std::vector<double>& res_max) {
         for (size_t i = 0; i < resources.size(); ++i) {
@@ -181,14 +194,14 @@ public:
             for (int j = 0; j < x.size(); j++) {
                 cntr += x[j] * min_weight[j][k];
             }
-            model.addConstr(cntr <= res_max[k], "resource "+std::to_string(k));
-            
+            model.addConstr(cntr <= res_max[k], "resource " + std::to_string(k));
+
         }
         // Optimize the model
         model.optimize();
         return model.get(GRB_DoubleAttr_ObjVal);
     }
-    
+
 
 
     // Display the label
@@ -233,10 +246,11 @@ public:
 // Class to manage labels
 class LabelManager {
 private:
-    std::unordered_map<int,std::vector<Label>> fw_labels, bw_labels; // Collection of labels
-    /* 
-       The structure is std::unordered_map<vertex(int), label(Label)> 
-    */ 
+    std::unordered_map<int, std::vector<Label>> fw_labels, bw_labels; // Collection of labels
+    double UB = 1000;
+    /*
+       The structure is std::unordered_map<vertex(int), label(Label)>
+    */
 
 public:
     void InSert(const Label& label) {
@@ -245,15 +259,15 @@ public:
         if (label.direction) {
             // if label's cost smaller than index =0;
             if (label.cost < fw_labels.at(v)[0].cost) {
-                fw_labels.at(v).insert(fw_labels.at(v).begin(),label);
+                fw_labels.at(v).insert(fw_labels.at(v).begin(), label);
             }
             // if label's cost greater than the last label
             if (label.cost > fw_labels.at(v).back().cost) {
                 fw_labels.at(v).push_back(label);
             }
-            for (int i = 0; i < fw_labels.at(v).size()-1; i++) {
-                if (label.cost >= fw_labels.at(v)[i].cost&& label.cost <= fw_labels.at(v)[i+1].cost) {
-                    fw_labels.at(v).insert(fw_labels.at(v).begin()+i+1,label);
+            for (int i = 0; i < fw_labels.at(v).size() - 1; i++) {
+                if (label.cost >= fw_labels.at(v)[i].cost && label.cost <= fw_labels.at(v)[i + 1].cost) {
+                    fw_labels.at(v).insert(fw_labels.at(v).begin() + i + 1, label);
                 }
             }
         }
@@ -273,7 +287,7 @@ public:
             }
 
         }
-        
+
     }
     // Get all labels
     const std::unordered_map<int, std::vector<Label>>& getLabels(bool direction) const {
@@ -300,12 +314,12 @@ int main() {
     // Initialize a label manager
     LabelManager manager;
     int n = 5, m = 2;
-
+	std::vector<double> res_max = { 5.0, 5.0 };
 
     // Initialize random seed
     std::srand(std::time(nullptr));
     // Create a graph
-    Graph graph(n);
+    Graph graph(n,m);
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < n; ++j) {
             if (i != j) {
@@ -323,15 +337,17 @@ int main() {
             }
         }
     }
+	graph.getMaxValue();
+	graph.getMinWeights();
     graph.display();
     // Create initial label (starting from node 0)
-    Label initialLabel(n, { 0 }, 0.0, { 0.0, 0.0 }); // Path: {0}, Cost: 0.0, Resources: [0.0, 0.0]
-    manager.addLabel(initialLabel);
-    for (const Edge& edge : graph.getNeighbors(0)) {
-        Label newLabel(initialLabel);
-        newLabel.addNode(edge, graph, { 5.0, 5.0 });
-        newLabel.reachHalfPoint({ 5.0, 5.0 });
-        manager.addLabel(newLabel);
+    //Label initialLabel(n, { 0 }, 0.0, { 0.0, 0.0 }); // Path: {0}, Cost: 0.0, Resources: [0.0, 0.0]
+    //manager.addLabel(initialLabel);
+    //for (const Edge& edge : graph.getNeighbors(0)) {
+    //    Label newLabel(initialLabel);
+    //    newLabel.addNode(edge, graph, { 5.0, 5.0 });
+    //    newLabel.reachHalfPoint({ 5.0, 5.0 });
+    //    manager.addLabel(newLabel);
     }
 
     // Simulate adding labels
@@ -355,8 +371,8 @@ int main() {
     // manager.pruneLabels([](const Label& label) { return label.cost > 1000.0; });
 
     // Display remaining labels
-    std::cout << "\nLabels after pruning (Cost <= 20):\n";
-    manager.displayLabels();
+    //std::cout << "\nLabels after pruning (Cost <= 20):\n";
+    //manager.displayLabels();
 
     return 0;
 }

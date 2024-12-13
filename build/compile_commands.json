@@ -1,0 +1,8 @@
+[
+{
+  "directory": "D:/CPP_ESPPRC/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe  @CMakeFiles/gurobi-template.dir/includes_CXX.rsp -g -o CMakeFiles\\gurobi-template.dir\\ESPPRC.cpp.obj -c D:\\CPP_ESPPRC\\ESPPRC.cpp",
+  "file": "D:/CPP_ESPPRC/ESPPRC.cpp",
+  "output": "CMakeFiles/gurobi-template.dir/ESPPRC.cpp.obj"
+}
+]
