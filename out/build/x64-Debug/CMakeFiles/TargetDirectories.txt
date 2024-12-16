@@ -1,0 +1,3 @@
+C:/Users/Feri/Source/repos/CPP_ESPPRC/out/build/x64-Debug/CMakeFiles/ESPPRC.dir
+C:/Users/Feri/Source/repos/CPP_ESPPRC/out/build/x64-Debug/CMakeFiles/edit_cache.dir
+C:/Users/Feri/Source/repos/CPP_ESPPRC/out/build/x64-Debug/CMakeFiles/rebuild_cache.dir

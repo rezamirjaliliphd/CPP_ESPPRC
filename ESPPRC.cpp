@@ -136,6 +136,7 @@ public:
         reachable[0] = false;
     }
 
+    // what does this do?
     Label(const Label& parent, int v)
         : vertex(v), path(parent.path), cost(parent.cost), resources(parent.resources), reachable(parent.reachable), direction(parent.direction) {
     }
@@ -303,18 +304,36 @@ public:
 
         int v = label.vertex;
         if (label.direction) {
-            // if label's cost smaller than index =0;
-            if (label.cost < fw_labels.at(v)[0].cost) {
-                fw_labels.at(v).insert(fw_labels.at(v).begin(), label);
-            }
-            // if label's cost greater than the last label
-            if (label.cost > fw_labels.at(v).back().cost) {
-                fw_labels.at(v).push_back(label);
-            }
-            for (size_t i = 0; i < fw_labels.at(v).size() - 1; i++) {
-                if (label.cost >= fw_labels.at(v)[i].cost && label.cost <= fw_labels.at(v)[i + 1].cost) {
-                    fw_labels.at(v).insert(fw_labels.at(v).begin() + i + 1, label);
+        // if label's cost smaller than index =0;
+        if (label.cost < fw_labels.at(v)[0].cost) {
+            fw_labels.at(v).insert(fw_labels.at(v).begin(), label);
+                
+        } 
+        // if label's cost greater than the last label
+        else if (label.cost > fw_labels.at(v).back().cost) {
+            fw_labels.at(v).push_back(label);
+        } 
+        // if label's cost is somewhere in the middle
+        else {
+            size_t left = 1, right = fw_labels.at(v).size() - 1;
+
+            while (left < right) {
+                size_t mid = left + (right - left) / 2;
+
+                if (label.cost < fw_labels.at(v)[mid].cost) {
+                    right = mid; // Narrow the range to the left half
                 }
+                else {
+                    left = mid + 1; // Narrow the range to the right half
+                }
+            }
+            // Insert the label at the correct position after narrowing down the range
+            fw_labels.at(v).insert(fw_labels.at(v).begin() + left, label); 
+                
+            //for (size_t i = 1; i < fw_labels.at(v).size() - 2; i++) {
+                //if (label.cost >= fw_labels.at(v)[i].cost && label.cost <= fw_labels.at(v)[i + 1].cost) {
+                    //fw_labels.at(v).insert(fw_labels.at(v).begin() + i + 1, label);
+                //}
             }
         }
         else {
