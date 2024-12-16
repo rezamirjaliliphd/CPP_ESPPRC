@@ -303,6 +303,7 @@ public:
     void InSert(const Label& label) {
 
         int v = label.vertex;
+        // Farzane's Update
         if (label.direction) {
         // if label's cost smaller than index =0;
         if (label.cost < fw_labels.at(v)[0].cost) {
@@ -327,6 +328,7 @@ public:
                     left = mid + 1; // Narrow the range to the right half
                 }
             }
+
             // Insert the label at the correct position after narrowing down the range
             fw_labels.at(v).insert(fw_labels.at(v).begin() + left, label); 
                 
