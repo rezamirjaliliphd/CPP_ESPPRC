@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.3)
 
-project(gurobi-template C)
+project(ESPPRC)
 
 option(CXX "enable C++ compilation" ON)
 
@@ -21,6 +21,9 @@ if(MSVC AND MT)
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT")
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
 endif()
+
+# Set GUROBI_CXX_LIBRARY explicitly
+set(GUROBI_CXX_LIBRARY "${GUROBI_HOME}/lib/gurobi_c++.lib")
 
 find_package(GUROBI REQUIRED)
 

@@ -62,11 +62,11 @@ CMAKE_BINARY_DIR = D:\CPP_ESPPRC\build
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
-all: CMakeFiles/gurobi-template.dir/all
+all: CMakeFiles/ESPPRC.dir/all
 .PHONY : all
 
 # The main recursive "codegen" target.
-codegen: CMakeFiles/gurobi-template.dir/codegen
+codegen: CMakeFiles/ESPPRC.dir/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
@@ -74,39 +74,39 @@ preinstall:
 .PHONY : preinstall
 
 # The main recursive "clean" target.
-clean: CMakeFiles/gurobi-template.dir/clean
+clean: CMakeFiles/ESPPRC.dir/clean
 .PHONY : clean
 
 #=============================================================================
-# Target rules for target CMakeFiles/gurobi-template.dir
+# Target rules for target CMakeFiles/ESPPRC.dir
 
 # All Build rule for target.
-CMakeFiles/gurobi-template.dir/all:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\gurobi-template.dir\build.make CMakeFiles/gurobi-template.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\gurobi-template.dir\build.make CMakeFiles/gurobi-template.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=D:\CPP_ESPPRC\build\CMakeFiles --progress-num=1,2 "Built target gurobi-template"
-.PHONY : CMakeFiles/gurobi-template.dir/all
+CMakeFiles/ESPPRC.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\ESPPRC.dir\build.make CMakeFiles/ESPPRC.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\ESPPRC.dir\build.make CMakeFiles/ESPPRC.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=D:\CPP_ESPPRC\build\CMakeFiles --progress-num=1,2 "Built target ESPPRC"
+.PHONY : CMakeFiles/ESPPRC.dir/all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/gurobi-template.dir/rule: cmake_check_build_system
+CMakeFiles/ESPPRC.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start D:\CPP_ESPPRC\build\CMakeFiles 2
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 CMakeFiles/gurobi-template.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 CMakeFiles/ESPPRC.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start D:\CPP_ESPPRC\build\CMakeFiles 0
-.PHONY : CMakeFiles/gurobi-template.dir/rule
+.PHONY : CMakeFiles/ESPPRC.dir/rule
 
 # Convenience name for target.
-gurobi-template: CMakeFiles/gurobi-template.dir/rule
-.PHONY : gurobi-template
+ESPPRC: CMakeFiles/ESPPRC.dir/rule
+.PHONY : ESPPRC
 
 # codegen rule for target.
-CMakeFiles/gurobi-template.dir/codegen:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\gurobi-template.dir\build.make CMakeFiles/gurobi-template.dir/codegen
-.PHONY : CMakeFiles/gurobi-template.dir/codegen
+CMakeFiles/ESPPRC.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\ESPPRC.dir\build.make CMakeFiles/ESPPRC.dir/codegen
+.PHONY : CMakeFiles/ESPPRC.dir/codegen
 
 # clean rule for target.
-CMakeFiles/gurobi-template.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\gurobi-template.dir\build.make CMakeFiles/gurobi-template.dir/clean
-.PHONY : CMakeFiles/gurobi-template.dir/clean
+CMakeFiles/ESPPRC.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\ESPPRC.dir\build.make CMakeFiles/ESPPRC.dir/clean
+.PHONY : CMakeFiles/ESPPRC.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.
