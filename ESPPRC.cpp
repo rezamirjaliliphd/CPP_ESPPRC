@@ -125,7 +125,7 @@ public:
     std::vector<double> resources;    // Resource consumption of the path
     std::vector<bool> reachable;      // Reachability of the nodes
     bool half_point = false;   // Half point reached or not
-    bool direction;      // Forward or backward
+    bool direction;      // Forward:true or backward:false
     double LB;      // Lower bound
     LabelStatus status = LabelStatus::INCOMPARABLE;     // Status of the label
 
@@ -143,27 +143,60 @@ public:
 
     // Add a node to the path
     void addNode(const Edge& edge, const Graph& graph, const std::vector<double>& res_max, const double UB) {
-        if (edge.from == path.back()) {
-            path.push_back(edge.to);
-            reachable[edge.to] = false;
-            cost += edge.cost;
-            // Calculate LB, and compare it with UB
-            LB = getLB(res_max, graph.num_nodes, graph.min_weight, graph.max_value) + cost;
-            if (LB <= UB) {
+        if (direction) {
+            if (edge.from == path.back()) {
+                path.push_back(edge.to);
+                reachable[edge.to] = false;
+                cost += edge.cost;//Update cost
                 for (size_t i = 0; i < resources.size(); ++i) {
-                    resources[i] += edge.resources[i];
-                }
+                        resources[i] += edge.resources[i];//update resources
+                    }
+                reachHalfPoint(res_max);
                 for (const Edge& e : graph.getNeighbors(edge.to)) {
-                    for (size_t i = 0; i < resources.size(); ++i) {
-                        if (resources[i] + e.resources[i] > res_max[i]) {
-                            reachable[e.to] = false;
-                            break;
+                    if (reachable[e.to] && e.to != 0) {
+                        for (size_t i = 0; i < resources.size(); ++i) {
+                            if (resources[i] + e.resources[i] > res_max[i]) {
+                                reachable[e.to] = false;
+                                break;
+                            }
                         }
                     }
                 }
-            }
+                // Calculate LB, and compare it with UB
+                LB = getLB(res_max, graph.num_nodes, graph.min_weight, graph.max_value) + cost;
+                if (LB > UB) {
+                    status = LabelStatus::DOMINATED;
+                }
 
+            }
         }
+        else {
+            if (edge.to == path.begin()) {
+                path.insert(path.begin(),edge.from);
+                reachable[edge.from] = false;
+                cost += edge.cost;//Update cost
+                for (size_t i = 0; i < resources.size(); ++i) {
+                        resources[i] += edge.resources[i];//update resources
+                    }
+                reachHalfPoint(res_max);
+                for (const Edge& e : graph.getNeighbors(edge.from)) {
+                    if (reachable[e.from] && e.from != 0) {
+                        for (size_t i = 0; i < resources.size(); ++i) {
+                            if (resources[i] + e.resources[i] > res_max[i]) {
+                                reachable[e.from] = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                // Calculate LB, and compare it with UB
+                LB = getLB(res_max, graph.num_nodes, graph.min_weight, graph.max_value) + cost;
+                if (LB > UB) {
+                    status = LabelStatus::DOMINATED;
+                }
+            }
+        }
+
     }
 
     // Reaches half=point
@@ -316,10 +349,11 @@ public:
         } 
         // if label's cost is somewhere in the middle
         else {
-            size_t left = 1, right = fw_labels.at(v).size() - 1;
+            size_t left = 1, right = fw_labels.at(v).size() - 1,mid;
 
             while (left < right) {
-                size_t mid = left + (right - left) / 2;
+
+                mid = static_cast<size_t>(left + (right - left) / 2);
 
                 if (label.cost < fw_labels.at(v)[mid].cost) {
                     right = mid; // Narrow the range to the left half
@@ -473,6 +507,63 @@ public:
     void displaySolutions() const {
         for (const Solution& solution : solutions) {
             solution.display();
+        }
+    }
+
+    
+
+    // Select a label
+    void Propagate() {
+        for (const auto& pair : fw_labels) {
+            for (const Label& label : pair.second) {
+                if (!label.half_point){
+                    for(const Edge& edge : graph.getNeighbors(label.vertex)){
+                        Label new_label(label, edge.to);
+                        new_label.addNode(edge, graph, res_max, UB);
+                        DominanceCheck(new_label);
+                    }
+                    break;
+                }
+            }
+        }
+        for (const auto& pair : bw_labels) {
+            for (const Label& label : pair.second) {
+                if (!label.half_point){
+                    for(const Edge& edge : graph.getNeighbors(label.vertex)){
+                        Label new_label(label, edge.from);
+                        new_label.addNode(edge, graph, res_max, UB);
+                        DominanceCheck(new_label);
+                    }
+                    break;
+                }
+            }
+        }
+          
+        }
+
+    bool TerminationCheck() {
+        for(const auto& pair : fw_labels){
+            for(const Label& label : pair.second){
+                if(label.status == LabelStatus::INCOMPARABLE && !label.half_point){
+                    return false;
+                }
+            }
+        }
+        for(const auto& pair : bw_labels){
+            for(const Label& label : pair.second){
+                if(label.status == LabelStatus::INCOMPARABLE && !label.half_point){
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    void Run(){
+        while(!TerminationCheck()){
+            // Generate labels
+            Propagate();    
+            // Concatenate the forward and backward labels
+            concatenateLabels();
         }
     }
 
