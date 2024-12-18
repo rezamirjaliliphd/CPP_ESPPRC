@@ -55,30 +55,33 @@ public:
 
 class Graph {
 private:
-    std::vector<std::vector<Edge>> adjList; // Adjacency list 
+	std::vector<std::vector<Edge>> OutList, InList; // Outgoing and incoming edges
 
 public:
     int num_nodes;
     int num_res;
     std::vector<std::vector<double>> min_weight;
     std::vector<double> max_value;
+	std::vector<double> res_max;
     // Constructor
-    Graph(int n, int m) : adjList(n), num_nodes(n), num_res(m), min_weight(n, std::vector<double>(m, 100.0)), max_value(n, 100.0) {}
+    Graph(int n, int m, std::vector<double> r_max) : OutList(n),InList(n), num_nodes(n), num_res(m),
+        min_weight(n, std::vector<double>(m, 100.0)), max_value(n, 100.0), res_max(r_max) {}
 
     // Add an edge to the graph
     void addEdge(int from, int to, double cost, const std::vector<double>& resources) {
-        adjList[from].emplace_back(Edge(from, to, cost, resources));
+        OutList[from].emplace_back(Edge(from, to, cost, resources));
+		InList[to].emplace_back(Edge(from, to, cost, resources));
     }
-
+	
     // Get the neighbors of a node
-    const std::vector<Edge>& getNeighbors(int node) const {
-        return adjList[node];
-    }
+    const std::vector<Edge>& getNeighbors(int node, bool IN) const {
+		return IN ? InList[node] : OutList[node];
+	}
     // Display the graph
     void display() const {
-        for (int i = 0; i < adjList.size(); ++i) {
+        for (int i = 0; i < num_nodes; ++i) {
             std::cout << "Node " << i << ":\n";
-            for (const Edge& edge : adjList[i]) {
+            for (const Edge& edge : OutList[i]) {
                 std::cout << "  -> " << edge.to << " (Cost: " << edge.cost << ", Resources: [";
                 for (size_t j = 0; j < edge.resources.size(); ++j) {
                     std::cout << edge.resources[j] << (j + 1 < edge.resources.size() ? ", " : "");
@@ -92,7 +95,7 @@ public:
         // outputing a vector of minimum resources' consumptions by node 
 
         for (int i = 0; i < num_nodes; i++) {
-            for (const Edge& e : adjList[i]) {
+            for (const Edge& e : OutList[i]) {
                 for (int k = 0; k < e.resources.size(); k++) {
                     if (min_weight[i][k] > e.resources[k]) {
                         min_weight[i][k] = e.resources[k];
@@ -105,7 +108,7 @@ public:
     void getMaxValue() {
         // outputing a vector of maximum value by node 
         for (int i = 0; i < num_nodes; i++) {
-            for (const Edge& e : adjList[i]) {
+            for (const Edge& e : OutList[i]) {
                 if (max_value[i] > e.cost) {
                     max_value[i] = e.cost;
                 }
@@ -131,31 +134,35 @@ public:
 
 
     // Constructor
-    Label(const int n, const std::vector<int>& p, double c, const std::vector<double>& r, const bool dr)
-        : vertex(p.back()), path(p), cost(c), resources(r), reachable(n, true), direction(dr) {
-        reachable[0] = false;
-    }
+   
+	Label(Graph& graph, bool dir) : vertex(0), path({ 0 }), cost(0), resources(graph.num_res), reachable(graph.num_nodes, true), direction(dir), LB(0), id(0) {
+		reachable[0] = false;
+	}
 
     // what does this do?
-    Label(const Label& parent, int v)
-        : vertex(v), path(parent.path), cost(parent.cost), resources(parent.resources), reachable(parent.reachable), direction(parent.direction) {
+    Label(const Label& parent, int v, const Graph& graph, const Edge& edge, const double UB)
+        : vertex(v), path(parent.path), cost(parent.cost),
+        resources(parent.resources), reachable(parent.reachable),
+        direction(parent.direction) {
+        addNode(edge, graph, UB);
     }
 
-    // Add a node to the path
-    void addNode(const Edge& edge, const Graph& graph, const std::vector<double>& res_max, const double UB) {
+    // Add a node to the label
+    void addNode(const Edge& edge, const Graph& graph, const double UB) {
         if (direction) {
-            if (edge.from == path.back()) {
+            if (edge.from == vertex) {
+				std::cout << "edge.from: " << edge.from << " vertex: " << vertex << std::endl;
                 path.push_back(edge.to);
                 reachable[edge.to] = false;
                 cost += edge.cost;//Update cost
                 for (size_t i = 0; i < resources.size(); ++i) {
-                        resources[i] += edge.resources[i];//update resources
-                    }
-                reachHalfPoint(res_max);
-                for (const Edge& e : graph.getNeighbors(edge.to)) {
+                    resources[i] += edge.resources[i];//update resources
+                }
+                reachHalfPoint(graph.res_max);
+                for (const Edge& e : graph.getNeighbors(edge.to,false)) {
                     if (reachable[e.to] && e.to != 0) {
                         for (size_t i = 0; i < resources.size(); ++i) {
-                            if (resources[i] + e.resources[i] > res_max[i]) {
+                            if (resources[i] + e.resources[i] > graph.res_max[i]) {
                                 reachable[e.to] = false;
                                 break;
                             }
@@ -163,26 +170,30 @@ public:
                     }
                 }
                 // Calculate LB, and compare it with UB
-                LB = getLB(res_max, graph.num_nodes, graph.min_weight, graph.max_value) + cost;
+                LB = getLB(graph.res_max, graph.num_nodes, graph.min_weight, graph.max_value) + cost;
                 if (LB > UB) {
                     status = LabelStatus::DOMINATED;
                 }
 
             }
+            else {
+
+            }
         }
         else {
-            if (edge.to == path.begin()) {
-                path.insert(path.begin(),edge.from);
+            if (edge.to == vertex) {
+				std::cout << "edge.to: " << edge.to << " vertex: " << vertex << std::endl;
+                path.insert(path.begin(), edge.from);
                 reachable[edge.from] = false;
                 cost += edge.cost;//Update cost
                 for (size_t i = 0; i < resources.size(); ++i) {
-                        resources[i] += edge.resources[i];//update resources
-                    }
-                reachHalfPoint(res_max);
-                for (const Edge& e : graph.getNeighbors(edge.from)) {
+                    resources[i] += edge.resources[i];//update resources
+                }
+                reachHalfPoint(graph.res_max);
+                for (const Edge& e : graph.getNeighbors(edge.from,true)) {
                     if (reachable[e.from] && e.from != 0) {
                         for (size_t i = 0; i < resources.size(); ++i) {
-                            if (resources[i] + e.resources[i] > res_max[i]) {
+                            if (resources[i] + e.resources[i] > graph.res_max[i]) {
                                 reachable[e.from] = false;
                                 break;
                             }
@@ -190,7 +201,7 @@ public:
                     }
                 }
                 // Calculate LB, and compare it with UB
-                LB = getLB(res_max, graph.num_nodes, graph.min_weight, graph.max_value) + cost;
+                LB = getLB(graph.res_max, graph.num_nodes, graph.min_weight, graph.max_value) + cost;
                 if (LB > UB) {
                     status = LabelStatus::DOMINATED;
                 }
@@ -325,12 +336,32 @@ private:
     /*
        The structure is std::unordered_map<vertex(int), label(Label)>
     */
-
 public:
-    // Since in Pricing/Separtation model we are looking for negative cost, then UB is 0
-    double UB = 0.0;
+
+    LabelManager(int num_nodes, int num_res, Graph& graph) : fw_labels(),bw_labels() {
+        initializeLabels(num_nodes, num_res, graph);
+    }
+
+    double UB = 1000;
     // Solution pool
     std::vector<Solution> solutions;
+
+    void initializeLabels(int num_nodes, int num_res, Graph& graph) {
+        // Create the initial forward label at the source
+        Label source_label(graph, true);//n p c r dr lb
+        fw_labels[0].push_back(source_label);
+        for (const Edge& e : graph.getNeighbors(0, false)) {
+			std::cout << "e.from: " << e.from << " e.to: " << e.to << std::endl;
+            fw_labels[e.to].push_back(Label(source_label, e.to, graph, e, UB));
+        }
+        // Create the initial backward label at the sink
+        Label sink_label(graph, false);
+        bw_labels[0].push_back(sink_label);
+        for (const Edge& e : graph.getNeighbors(0, true)) {
+			std::cout << "e.from: " << e.from << " e.to: " << e.to << std::endl;
+			bw_labels[e.from].push_back(Label(sink_label, e.from, graph, e, UB));
+		}
+    }
 
     // Add a label into the set of labels while keeping the labels sorted
     void InSert(const Label& label) {
@@ -338,38 +369,38 @@ public:
         int v = label.vertex;
         // Farzane's Update
         if (label.direction) {
-        // if label's cost smaller than index =0;
-        if (label.cost < fw_labels.at(v)[0].cost) {
-            fw_labels.at(v).insert(fw_labels.at(v).begin(), label);
-                
-        } 
-        // if label's cost greater than the last label
-        else if (label.cost > fw_labels.at(v).back().cost) {
-            fw_labels.at(v).push_back(label);
-        } 
-        // if label's cost is somewhere in the middle
-        else {
-            size_t left = 1, right = fw_labels.at(v).size() - 1,mid;
+            // if label's cost smaller than index =0;
+            if (label.cost < fw_labels.at(v)[0].cost) {
+                fw_labels.at(v).insert(fw_labels.at(v).begin(), label);
 
-            while (left < right) {
-
-                mid = static_cast<size_t>(left + (right - left) / 2);
-
-                if (label.cost < fw_labels.at(v)[mid].cost) {
-                    right = mid; // Narrow the range to the left half
-                }
-                else {
-                    left = mid + 1; // Narrow the range to the right half
-                }
             }
+            // if label's cost greater than the last label
+            else if (label.cost > fw_labels.at(v).back().cost) {
+                fw_labels.at(v).push_back(label);
+            }
+            // if label's cost is somewhere in the middle
+            else {
+                size_t left = 1, right = fw_labels.at(v).size() - 1, mid;
 
-            // Insert the label at the correct position after narrowing down the range
-            fw_labels.at(v).insert(fw_labels.at(v).begin() + left, label); 
-                
-            //for (size_t i = 1; i < fw_labels.at(v).size() - 2; i++) {
-                //if (label.cost >= fw_labels.at(v)[i].cost && label.cost <= fw_labels.at(v)[i + 1].cost) {
-                    //fw_labels.at(v).insert(fw_labels.at(v).begin() + i + 1, label);
-                //}
+                while (left < right) {
+
+                    mid = static_cast<size_t>(left + (right - left) / 2);
+
+                    if (label.cost < fw_labels.at(v)[mid].cost) {
+                        right = mid; // Narrow the range to the left half
+                    }
+                    else {
+                        left = mid + 1; // Narrow the range to the right half
+                    }
+                }
+
+                // Insert the label at the correct position after narrowing down the range
+                fw_labels.at(v).insert(fw_labels.at(v).begin() + left, label);
+
+                //for (size_t i = 1; i < fw_labels.at(v).size() - 2; i++) {
+                    //if (label.cost >= fw_labels.at(v)[i].cost && label.cost <= fw_labels.at(v)[i + 1].cost) {
+                        //fw_labels.at(v).insert(fw_labels.at(v).begin() + i + 1, label);
+                    //}
             }
         }
         else {
@@ -412,6 +443,8 @@ public:
     // Prune labels based on a condition
     void DominanceCheck(Label& label) {
         bool eligible_to_insert = true;
+        int v = label.vertex;
+        bool dir = label.direction;
         if (label.direction) {
             for (auto& rival : fw_labels.at(label.vertex)) {
                 LabelStatus status = label.dominance(rival);
@@ -442,14 +475,17 @@ public:
             label.id = find_ID(label.direction, label.vertex);
             InSert(label);
         }
+        else {
+            delete& label;
+        }
         // Get rid of dominated labels
-        if (label.direction) {
-            fw_labels.at(label.vertex).erase(std::remove_if(fw_labels.at(label.vertex).begin(), fw_labels.at(label.vertex).end(),
-                [](const Label& label) { return label.status == LabelStatus::DOMINATED; }), fw_labels.at(label.vertex).end());
+        if (dir) {
+            fw_labels.at(v).erase(std::remove_if(fw_labels.at(v).begin(), fw_labels.at(v).end(),
+                [](const Label& label) { return label.status == LabelStatus::DOMINATED; }), fw_labels.at(v).end());
         }
         else {
-            bw_labels.at(label.vertex).erase(std::remove_if(bw_labels.at(label.vertex).begin(), bw_labels.at(label.vertex).end(),
-                [](const Label& label) { return label.status == LabelStatus::DOMINATED; }), bw_labels.at(label.vertex).end());
+            bw_labels.at(v).erase(std::remove_if(bw_labels.at(v).begin(), bw_labels.at(v).end(),
+                [](const Label& label) { return label.status == LabelStatus::DOMINATED; }), bw_labels.at(v).end());
         }
 
     }
@@ -493,9 +529,11 @@ public:
                         path.pop_back();
                         path.insert(path.end(), bw_label.path.rbegin(), bw_label.path.rend());
                         double cost = fw_label.cost + bw_label.cost;
-                        solutions.emplace_back(Solution(path, cost, { fw_label.id, bw_label.id }));
-                        // Update UB
-                        UB = std::min(UB, cost);
+                        if (cost < UB) {
+                            solutions.emplace_back(Solution(path, cost, { fw_label.id, bw_label.id }));
+                            // Update UB
+                            UB = std::min(UB, cost);
+                        }
                     }
                 }
             }
@@ -510,16 +548,16 @@ public:
         }
     }
 
-    
 
+    //TODO: when a label propagates, half point should be True
     // Select a label
-    void Propagate() {
+    void Propagate(Graph& graph, const std::vector<double>& res_max) {
         for (const auto& pair : fw_labels) {
             for (const Label& label : pair.second) {
-                if (!label.half_point){
-                    for(const Edge& edge : graph.getNeighbors(label.vertex)){
-                        Label new_label(label, edge.to);
-                        new_label.addNode(edge, graph, res_max, UB);
+                if (!label.half_point) {
+                    for (const Edge& edge : graph.getNeighbors(label.vertex,false)) {
+                        Label new_label(label, edge.to, graph, edge, UB);
+                        
                         DominanceCheck(new_label);
                     }
                     break;
@@ -528,42 +566,41 @@ public:
         }
         for (const auto& pair : bw_labels) {
             for (const Label& label : pair.second) {
-                if (!label.half_point){
-                    for(const Edge& edge : graph.getNeighbors(label.vertex)){
-                        Label new_label(label, edge.from);
-                        new_label.addNode(edge, graph, res_max, UB);
+                if (!label.half_point) {
+                    for (const Edge& edge : graph.getNeighbors(label.vertex,true)) {
+                        Label new_label(label, edge.from, graph, edge, UB);
                         DominanceCheck(new_label);
                     }
                     break;
                 }
             }
         }
-          
-        }
+
+    }
 
     bool TerminationCheck() {
-        for(const auto& pair : fw_labels){
-            for(const Label& label : pair.second){
-                if(label.status == LabelStatus::INCOMPARABLE && !label.half_point){
+        for (const auto& pair : fw_labels) {
+            for (const Label& label : pair.second) {
+                if (label.status == LabelStatus::INCOMPARABLE && !label.half_point) {
                     return false;
                 }
             }
         }
-        for(const auto& pair : bw_labels){
-            for(const Label& label : pair.second){
-                if(label.status == LabelStatus::INCOMPARABLE && !label.half_point){
+        for (const auto& pair : bw_labels) {
+            for (const Label& label : pair.second) {
+                if (label.status == LabelStatus::INCOMPARABLE && !label.half_point) {
                     return false;
                 }
             }
         }
         return true;
     }
-    void Run(){
-        while(!TerminationCheck()){
+    void Run(Graph& graph, const std::vector<double>& res_max) {
+        while (!TerminationCheck()) {
             // Generate labels
-            Propagate();    
+            Propagate(graph, res_max);
             // Concatenate the forward and backward labels
-            concatenateLabels();
+            concatenateLabels(res_max);
         }
     }
 
@@ -571,14 +608,15 @@ public:
 
 int main() {
     // Initialize a label manager
-    LabelManager manager;
+    
     int n = 5, m = 2;
+    
     std::vector<double> res_max = { 5.0, 5.0 };
 
     // Initialize random seed
     std::srand(std::time(nullptr));
     // Create a graph
-    Graph graph(n, m);
+    Graph graph(n, m, res_max);
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < n; ++j) {
             if (i != j) {
@@ -598,7 +636,11 @@ int main() {
     }
     graph.getMaxValue();
     graph.getMinWeights();
-    graph.display();
+    //graph.display();
+
+    LabelManager manager(n, m, graph);
+	manager.displayLabels();
+	//manager.Propagate(graph, res_max);
 
     return 0;
 }
