@@ -135,31 +135,107 @@ public:
 
     // Constructor
    
-	Label(Graph& graph, bool dir) : vertex(0), path({ 0 }), cost(0), resources(graph.num_res), reachable(graph.num_nodes, true), direction(dir), LB(0), id(0) {
+	Label(Graph& graph, bool dir) : vertex(0), path({ 0 }), cost(0), resources(graph.num_res,0), reachable(graph.num_nodes, true), direction(dir), LB(0), id(0) {
 		reachable[0] = false;
 	}
 
     // what does this do?
+    //RM: This constructor is used to create a new label from an existing label
+  //  Label(const Label& parent, int v, const Graph& graph, const Edge& edge, const double UB)
+  //      : vertex(v), path(parent.path), cost(parent.cost),
+  //      resources(parent.resources), reachable(parent.reachable),
+  //      direction(parent.direction) {}
+
+  //  // Add a node to the label
+  //  void addNode(const Edge& edge, const Graph& graph, const double UB) {
+		//std::cout << "Adding Vertex: " << vertex << std::endl;
+  //      if (direction) {
+  //          if (edge.from == vertex) {
+		//		std::cout << "edge.from: " << edge.from << " vertex: " << vertex << std::endl;
+  //              path.push_back(edge.to);
+  //              reachable[edge.to] = false;
+  //              cost += edge.cost;//Update cost
+		//		std::cout << "cost: " << cost << std::endl;
+  //              for (size_t i = 0; i < resources.size(); ++i) {
+  //                  resources[i] += edge.resources[i];//update resources
+  //                  std::cout << "resources[" << i << "]: " << resources[i] << std::endl;
+  //              }
+  //              reachHalfPoint(graph.res_max);
+  //              for (const Edge& e : graph.getNeighbors(edge.to,false)) {
+  //                  if (reachable[e.to] && e.to != 0) {
+  //                      for (size_t i = 0; i < resources.size(); ++i) {
+  //                          if (resources[i] + e.resources[i] > graph.res_max[i]) {
+  //                              reachable[e.to] = false;
+  //                              break;
+  //                          }
+  //                      }
+  //                  }
+  //              }
+  //              // Calculate LB, and compare it with UB
+  //              LB = getLB(graph.res_max, graph.num_nodes, graph.min_weight, graph.max_value) + cost;
+  //              if (LB > UB) {
+  //                  status = LabelStatus::DOMINATED;
+  //              }
+
+  //          }
+  //          else {
+
+  //          }
+  //      }
+  //      else {
+  //          if (edge.to == vertex) {
+		//		std::cout << "edge.to: " << edge.to << " vertex: " << vertex << std::endl;
+  //              path.insert(path.begin(), edge.from);
+  //              reachable[edge.from] = false;
+  //              cost += edge.cost;//Update cost
+  //              for (size_t i = 0; i < resources.size(); ++i) {
+  //                  resources[i] += edge.resources[i];//update resources
+		//			std::cout << "resources[" << i << "]: " << resources[i] << std::endl;
+  //              }
+  //              reachHalfPoint(graph.res_max);
+  //              for (const Edge& e : graph.getNeighbors(edge.from,true)) {
+  //                  if (reachable[e.from] && e.from != 0) {
+  //                      for (size_t i = 0; i < resources.size(); ++i) {
+  //                          if (resources[i] + e.resources[i] > graph.res_max[i]) {
+  //                              reachable[e.from] = false;
+  //                              break;
+  //                          }
+  //                      }
+  //                  }
+  //              }
+  //              // Calculate LB, and compare it with UB
+  //              LB = getLB(graph.res_max, graph.num_nodes, graph.min_weight, graph.max_value) + cost;
+  //              if (LB > UB) {
+  //                  status = LabelStatus::DOMINATED;
+  //              }
+  //          }
+  //      }
+
+  //  }
     Label(const Label& parent, int v, const Graph& graph, const Edge& edge, const double UB)
         : vertex(v), path(parent.path), cost(parent.cost),
         resources(parent.resources), reachable(parent.reachable),
         direction(parent.direction) {
+        // Add the new node to the path and update the cost and resources
         addNode(edge, graph, UB);
     }
 
     // Add a node to the label
     void addNode(const Edge& edge, const Graph& graph, const double UB) {
+        std::cout << "Adding Vertex: " << vertex << std::endl;
         if (direction) {
             if (edge.from == vertex) {
-				std::cout << "edge.from: " << edge.from << " vertex: " << vertex << std::endl;
+                std::cout << "edge.from: " << edge.from << " vertex: " << vertex << std::endl;
                 path.push_back(edge.to);
                 reachable[edge.to] = false;
-                cost += edge.cost;//Update cost
+                cost += edge.cost; // Update cost
+                std::cout << "cost: " << cost << std::endl;
                 for (size_t i = 0; i < resources.size(); ++i) {
-                    resources[i] += edge.resources[i];//update resources
+                    resources[i] += edge.resources[i]; // Update resources
+                    std::cout << "resources[" << i << "]: " << resources[i] << std::endl;
                 }
                 reachHalfPoint(graph.res_max);
-                for (const Edge& e : graph.getNeighbors(edge.to,false)) {
+                for (const Edge& e : graph.getNeighbors(edge.to, false)) {
                     if (reachable[e.to] && e.to != 0) {
                         for (size_t i = 0; i < resources.size(); ++i) {
                             if (resources[i] + e.resources[i] > graph.res_max[i]) {
@@ -174,23 +250,20 @@ public:
                 if (LB > UB) {
                     status = LabelStatus::DOMINATED;
                 }
-
-            }
-            else {
-
             }
         }
         else {
             if (edge.to == vertex) {
-				std::cout << "edge.to: " << edge.to << " vertex: " << vertex << std::endl;
+                std::cout << "edge.to: " << edge.to << " vertex: " << vertex << std::endl;
                 path.insert(path.begin(), edge.from);
                 reachable[edge.from] = false;
-                cost += edge.cost;//Update cost
+                cost += edge.cost; // Update cost
                 for (size_t i = 0; i < resources.size(); ++i) {
-                    resources[i] += edge.resources[i];//update resources
+                    resources[i] += edge.resources[i]; // Update resources
+                    std::cout << "resources[" << i << "]: " << resources[i] << std::endl;
                 }
                 reachHalfPoint(graph.res_max);
-                for (const Edge& e : graph.getNeighbors(edge.from,true)) {
+                for (const Edge& e : graph.getNeighbors(edge.from, true)) {
                     if (reachable[e.from] && e.from != 0) {
                         for (size_t i = 0; i < resources.size(); ++i) {
                             if (resources[i] + e.resources[i] > graph.res_max[i]) {
@@ -207,7 +280,6 @@ public:
                 }
             }
         }
-
     }
 
     // Reaches half=point
@@ -339,6 +411,7 @@ private:
 public:
 
     LabelManager(int num_nodes, int num_res, Graph& graph) : fw_labels(),bw_labels() {
+		std::cout << "Initializing Labels" << std::endl;
         initializeLabels(num_nodes, num_res, graph);
     }
 
@@ -351,15 +424,19 @@ public:
         Label source_label(graph, true);//n p c r dr lb
         fw_labels[0].push_back(source_label);
         for (const Edge& e : graph.getNeighbors(0, false)) {
-			std::cout << "e.from: " << e.from << " e.to: " << e.to << std::endl;
+			//std::cout << "e.from: " << e.from << " e.to: " << e.to << std::endl;
             fw_labels[e.to].push_back(Label(source_label, e.to, graph, e, UB));
+			//fw_labels[e.to].back().display();
+            std::cout << "Number of forward labels in Vertex " << e.to << " is: " << fw_labels[e.to].size() << std::endl;
+
         }
         // Create the initial backward label at the sink
         Label sink_label(graph, false);
         bw_labels[0].push_back(sink_label);
         for (const Edge& e : graph.getNeighbors(0, true)) {
-			std::cout << "e.from: " << e.from << " e.to: " << e.to << std::endl;
 			bw_labels[e.from].push_back(Label(sink_label, e.from, graph, e, UB));
+			//bw_labels[e.from].back().display();
+			std::cout << "Number of backward labels in Vertex "<< e.from << " is: " << bw_labels[e.from].size() << std::endl;
 		}
     }
 
@@ -558,6 +635,8 @@ public:
                     for (const Edge& edge : graph.getNeighbors(label.vertex,false)) {
                         Label new_label(label, edge.to, graph, edge, UB);
                         
+						//new_label.addNode(edge, graph, UB);
+						new_label.display();
                         DominanceCheck(new_label);
                     }
                     break;
@@ -569,6 +648,7 @@ public:
                 if (!label.half_point) {
                     for (const Edge& edge : graph.getNeighbors(label.vertex,true)) {
                         Label new_label(label, edge.from, graph, edge, UB);
+						//new_label.addNode(edge, graph, UB);
                         DominanceCheck(new_label);
                     }
                     break;
@@ -596,11 +676,20 @@ public:
         return true;
     }
     void Run(Graph& graph, const std::vector<double>& res_max) {
+		int cnt = 0;
         while (!TerminationCheck()) {
             // Generate labels
+			std::cout << "Propagating Labels" << std::endl;
             Propagate(graph, res_max);
+			std::cout << "Concatenating Labels" << std::endl;
             // Concatenate the forward and backward labels
             concatenateLabels(res_max);
+			//displayLabels();
+			cnt++;
+			std::cout << "iteration: " << cnt << std::endl;
+            if (cnt == 10) {
+                break;
+            }
         }
     }
 
@@ -611,7 +700,7 @@ int main() {
     
     int n = 5, m = 2;
     
-    std::vector<double> res_max = { 5.0, 5.0 };
+    std::vector<double> res_max = { 50.0, 50.0 };
 
     // Initialize random seed
     std::srand(std::time(nullptr));
@@ -639,7 +728,8 @@ int main() {
     //graph.display();
 
     LabelManager manager(n, m, graph);
-	manager.displayLabels();
+	manager.Run(graph, res_max);
+	//manager.displayLabels();
 	//manager.Propagate(graph, res_max);
 
     return 0;
