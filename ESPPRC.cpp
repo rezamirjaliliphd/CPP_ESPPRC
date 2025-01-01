@@ -11,6 +11,7 @@
 #include<numeric>
 #include<unordered_map>
 #include<climits>
+#include<unordered_set>
 
 
 enum class LabelStatus {
@@ -28,6 +29,13 @@ enum class DominanceStatus {
 enum class LabelDirection {
 	FORWARD,
 	BACKWARD
+};
+
+void print_vector(const std::vector<int>& vec) {
+    for (int i : vec) {
+        std::cout << i << " ";
+    }
+    std::cout << std::endl;
 };
 
 // Class to represent a edge
@@ -48,8 +56,12 @@ class Solution {
 public:
     std::vector<int> path;
     double cost;
-    std::pair<long long, long long> ID;
-    Solution(const std::vector<int>& p, double c, std::pair<long long, long long> id) : path(p), cost(c), ID(id) {}
+    std::pair<int, std::pair<long long, long long>> ID;
+    Solution(const std::vector<int>& p, double c, std::pair<int, std::pair<long long, long long>> id) : path(p), cost(c), ID(id) {
+        path = p;
+        cost = c;
+        ID = id;
+    }
     void display() const {
         std::cout << "Path: ";
         for (int node : path) {
@@ -177,7 +189,7 @@ public:
         for (size_t i = 0; i < resources.size(); ++i) {
             resources[i] += edge.resources[i]; // Update resources
             }
-        reachHalfPoint(graph.res_max)? status = LabelStatus::NEW_CLOSED : status = LabelStatus::NEW_OPEN;
+        reachHalfPoint(graph.res_max,graph.num_nodes)? status = LabelStatus::NEW_CLOSED : status = LabelStatus::NEW_OPEN;
         
         LB = getLB(graph.res_max, graph.num_nodes, graph.min_weight, graph.max_value)+cost;
         UpdateReachable(edge, graph, UB);
@@ -203,7 +215,10 @@ public:
     }
 
     // Reaches half=point
-    bool reachHalfPoint(const std::vector<double>& res_max) {
+    bool reachHalfPoint(const std::vector<double>& res_max, int num_nodes) {
+        if (path.size() >= static_cast<double>(num_nodes) / 2) {
+            return true;
+        }
         for (size_t i = 0; i < resources.size(); ++i) {
             if (resources[i] >= res_max[i] / 2) {
                 return true;
@@ -251,6 +266,9 @@ public:
 
     // Display the label
     void display() const {
+        std::cout << "=========================\n";
+        std::cout << "Direction: ";
+        std::cout<<(direction==LabelDirection::FORWARD ? "Forward" : "Backward")<<std::endl;
         std::cout << "Path: ";
         for (int node : path) {
             std::cout << node << " ";
@@ -265,6 +283,26 @@ public:
                 std::cout << "Node " << i << " is reachable\n";
             }
         }
+        std::cout << "Status: ";
+        switch (status) {
+        case LabelStatus::NEW_OPEN:
+            std::cout << "NEW_OPEN\n";
+            break;
+        case LabelStatus::NEW_CLOSED:
+            std::cout << "NEW_CLOSED\n";
+            break;
+        case LabelStatus::OPEN:
+            std::cout << "OPEN\n";
+            break;
+        case LabelStatus::CLOSED:    
+            std::cout << "CLOSED\n";
+            break;
+        case LabelStatus::DOMINATED:
+            std::cout << "DOMINATED\n";
+            break;
+        }
+        std::cout << "ID (vertex, id): ( " << vertex << " , " << id <<" )" << std::endl;
+        std::cout << "=========================\n\n";
 
     }
 
@@ -292,23 +330,22 @@ public:
     }
 
     // if label is concatable with the other label
-    bool isConcatenable(const Label& label, const std::vector<double>& r_max) const {
-        // considering only the forward labels
-        if (vertex == label.vertex && label.direction != direction && direction==LabelDirection::FORWARD) {
-            for (size_t i = 0; i < resources.size(); ++i) {
-                if (resources[i] + label.resources[i] > r_max[i]) {
-                    return false;
-                }
+    bool isConcatenable(const Label& bw_label, const std::vector<double>& r_max) const {
+    // Allow concatenation regardless of which direction initiated it
+      
+        // Check resource constraints
+        for (size_t i = 0; i < resources.size(); ++i) {
+            if (resources[i] + bw_label.resources[i] > r_max[i]) {
+                return false;
             }
-            for (size_t i = 1; i < reachable.size(); ++i) {
-                if (reachable[i] && label.reachable[i] && i != vertex) {
-                    return false;
-                }
-            }
-            return true;
         }
-        return false;
+        
+        // Check for path intersection (excluding meeting point)
+        std::unordered_set<int> first_set(path.begin(), path.end() - 1);
+        return std::none_of(bw_label.path.begin() + 1, bw_label.path.end(), 
+            [&first_set](const int& x) { return first_set.count(x) > 0; });
     }
+    
 };
 
 // Class to manage labels
@@ -374,13 +411,15 @@ public:
     }
 
     // Check if new concatenated labels exist in the solution pool
-    bool isIDDuplicate(const long long fw_id, const long long bw_id) const {
+    bool isIDDuplicate(const int vertex, const long long fw_id, const long long bw_id) const {
+        // Iterate through all solutions
         for (const Solution& solution : solutions) {
-            if (solution.ID == std::make_pair(fw_id, bw_id)) {
-                return true;
+            // Check if the solution ID matches the given forward and backward IDs
+            if (solution.ID == std::make_pair(vertex,std::make_pair(fw_id, bw_id))) {
+                return true; // Duplicate found
             }
         }
-        return false;
+        return false; // No duplicate found
     }
 
     // Get all labels
@@ -415,23 +454,19 @@ public:
         if (!isDominated) {
             label.id = find_ID(label.direction, label.vertex); // Assign a new unique ID to the label
             InSert(label); // Insert the new label into the set of labels
-        }else{
-            delete &label;
+            // label.display();
         }
     }
 
     long long find_ID(LabelDirection direction, const int vertex) const {
+        // Determine the label set based on the direction
+        const auto& labels = (direction == LabelDirection::FORWARD) ? fw_labels.at(vertex) : bw_labels.at(vertex);
+        
+        // Find the maximum ID in the label set
         long long id_max = 0;
-        if (direction==LabelDirection::FORWARD) {
-            for (const Label& label : fw_labels.at(vertex)) {
-                id_max = std::max(id_max, label.id);
-            }
-        }
-        else {
-            for (const Label& label : bw_labels.at(vertex)) {
-                id_max = std::max(id_max, label.id);
-            }
-        }
+        for (const Label& label : labels) { id_max = id_max>label.id ? id_max : label.id;}
+        
+        // Return the next ID
         return id_max + 1;
     }
     // Display all labels
@@ -453,14 +488,20 @@ public:
     void concatenateLabels(const std::vector<double>& res_max) {
         for (const auto& pair : fw_labels) {
             for (const Label& fw_label : pair.second) {
-                for (const Label& bw_label : bw_labels.at(fw_label.vertex)) {
-                    if (!isIDDuplicate(fw_label.id, bw_label.id) && fw_label.isConcatenable(bw_label, res_max)) {
+                for (const Label& bw_label : bw_labels[fw_label.vertex]) {
+                    std::cout<< "Concatenating Labels with ID: "<< fw_label.vertex<< " , " << bw_label.vertex << " , "<< fw_label.id << " , "<< bw_label.id << "Is possible "<< ( fw_label.isConcatenable(bw_label, res_max)) << std::endl;
+                    // && fw_label.isConcatenable(bw_label, res_max)
+                    if (!isIDDuplicate(fw_label.vertex, fw_label.id, bw_label.id) ) {
                         std::vector<int> path = fw_label.path;
                         path.pop_back();
                         path.insert(path.end(), bw_label.path.rbegin(), bw_label.path.rend());
                         double cost = fw_label.cost + bw_label.cost;
+                        for(size_t i = 0;i<path.size();i++){
+                            std::cout << path[i] << " ";
+                        }
+                        std::cout << "Cost: " << cost << std::endl;
                         if (cost < UB) {
-                            solutions.emplace_back(Solution(path, cost, { fw_label.id, bw_label.id }));
+                            solutions.emplace_back(Solution(path, cost, std::make_pair(fw_label.vertex, std::make_pair(fw_label.id, bw_label.id ))));
                             // Update UB
                             UB = std::min(UB, cost);
                         }
@@ -483,18 +524,18 @@ public:
 
         // Lambda function to propagate labels in a given direction
         auto propagateDirection = [&](std::unordered_map<int, std::vector<Label>>& labels, LabelDirection direction) {
-            for (const auto& pair : labels) {
-                for (const Label& label : pair.second) {
+            for (auto& pair : labels) {
+                for (Label& label : pair.second) {
                     if (label.status == LabelStatus::OPEN) {
                         for (const Edge& edge : graph.getNeighbors(label.vertex, direction)) {
                             // Skip if the edge leads back to the start node
-                            if ((direction == LabelDirection::FORWARD && edge.to != 0) || 
-                                (direction == LabelDirection::BACKWARD && edge.from != 0)) {
+                            if ((direction == LabelDirection::FORWARD && label.reachable[edge.to]) || 
+                                (direction == LabelDirection::BACKWARD && label.reachable[edge.from])) {
                                 Label new_label(label, graph, edge, UB);
                                 DominanceCheck(new_label);
-                                
                             }
                         }
+                        label.status = LabelStatus::CLOSED;
                         break;
                     }
                 }
@@ -535,6 +576,8 @@ public:
 			//displayLabels();
 		
         }
+        displayLabels();
+        std::cout << "Solutions: " << std::endl;
         displaySolutions();
     }
 
@@ -545,27 +588,22 @@ int main() {
     
     int n = 5, m = 2;
     
-    std::vector<double> res_max = { 50.0, 50.0 };
+    std::vector<double> res_max = { 25.0, 25.0 };
 
     // Initialize random seed
     std::srand(std::time(nullptr));
     // Create a graph
     Graph graph(n, m, res_max);
     for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            if (i != j) {
-                // Generate m non-negative random numbers
-                std::vector<double> randomResources(m);
-                for (int k = 0; k < m; ++k) {
-                    if (static_cast<double>(std::rand()) / RAND_MAX > 0.5) {
-                        randomResources[k] = static_cast<double>(std::rand()) / RAND_MAX * 5;
-                    }
-                    else {
-                        randomResources[k] = ceil(static_cast<double>(std::rand()) / RAND_MAX * 5);
-                    }
-                    graph.addEdge(i, j, (static_cast<double>(std::rand()) / RAND_MAX - 0.5) * 10, randomResources);
-                }
+        for (int j = i + 1; j < n; ++j) {
+            // Generate m non-negative random numbers
+            std::vector<double> randomResources(m);
+            for (int k = 0; k < m; ++k) {
+                randomResources[k] = ceil(static_cast<double>(std::rand()) / RAND_MAX * 5);
             }
+            double cost = (static_cast<double>(std::rand()) / RAND_MAX - 0.5) * 10;
+            graph.addEdge(i, j, cost, randomResources);
+            graph.addEdge(j, i, cost, randomResources); // Add the reverse edge to make the graph symmetric
         }
     }
     graph.getMaxValue();
