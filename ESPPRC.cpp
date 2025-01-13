@@ -12,7 +12,7 @@
 #include<unordered_map>
 #include<climits>
 #include<unordered_set>
-
+// Test branching
 
 enum class LabelStatus {
     NEW_OPEN, // If label has been generated but has not been inserted into the set of labels and has not hit half-point
