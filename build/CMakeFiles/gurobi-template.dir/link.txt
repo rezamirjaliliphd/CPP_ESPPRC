@@ -1,3 +1,0 @@
-"C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\gurobi-template.dir/objects.a
-C:\msys64\ucrt64\bin\ar.exe qc CMakeFiles\gurobi-template.dir/objects.a @CMakeFiles\gurobi-template.dir\objects1.rsp
-C:\msys64\ucrt64\bin\g++.exe -g -Wl,--whole-archive CMakeFiles\gurobi-template.dir/objects.a -Wl,--no-whole-archive -o gurobi-template.exe -Wl,--out-implib,libgurobi-template.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\gurobi-template.dir\linkLibs.rsp
