@@ -10,7 +10,7 @@
 #include "Edge.h"
 #include "Utils.h"
 #include "MIP.h"
-#include "BoostGraphConverter.h"
+
 
 
 void getRC(GRBModel& model, Graph& graph) {
