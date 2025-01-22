@@ -6,17 +6,21 @@
 #include "Graph.h"
 
 class BaseModel {
+private:
+    GRBModel* model;  // Pointer to the Gurobi model
+    std::vector<std::vector<GRBVar>> x;  // Declare x as a member variable
+    std::vector<GRBVar> u;  // Visit order
+
 public:
-    GRBModel* model; // Pointer to Gurobi model
 
     // Constructor to create the model
-    BaseModel(GRBEnv& env, int num_nodes, double capacity, Graph& Graph);
+    BaseModel(GRBEnv& env, int num_nodes, std::vector<float> capacities, int num_resources, Graph& Graph);
 
     // Destructor to clean up
     ~BaseModel();
 
     // Method to add a new edge 
-    void addVisitedEdge(Edge& edge, double resource);
+    void addVisitedEdge(Edge& edge);
 
     // Method to optimize the model
     void optimize();

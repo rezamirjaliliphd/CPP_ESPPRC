@@ -3,47 +3,56 @@
 #include "Edge.h"
 #include <iostream>
 
-BaseModel::BaseModel(GRBEnv& env, int num_nodes, double capacity, Graph& Graph) {
+BaseModel::BaseModel(GRBEnv& env, int num_nodes, std::vector<float> capacities, int num_resources, Graph& Graph) 
+    : x(num_nodes, std::vector<GRBVar>(num_nodes)), u(num_nodes) {
     try {
         model = new GRBModel(env); // Initialize Gurobi model
 
-        // store x_i_j variables [num_nodes+1, num_nodes+1]
-        std::vector<std::vector<GRBVar>> x(num_nodes+1, std::vector<GRBVar>(num_nodes+1));
-        std::vector<GRBVar> u(num_nodes + 2);
-        GRBVar r;
+        // store x_i_j variables [num_nodes, num_nodes]
+        std::vector<std::vector<GRBVar>> x(num_nodes, std::vector<GRBVar>(num_nodes));  // x_ij
+        std::vector<GRBVar> u(num_nodes);  // visit order
 
         GRBConstr usedup_capacity;
 
         // Add variables with two indices
-        for (int i = 0; i < num_nodes+2; ++i) {
-            for (int j = 0; j < num_nodes+2; ++j) {
+        std::vector<GRBLinExpr> resources(num_resources);
+        for (int i = 0; i < num_nodes; ++i) {
+            for (int j = 0; j < num_nodes; ++j) {
                 std::string varName = "x_" + std::to_string(i) + "_" + std::to_string(j); // x_i_j
                 x[i][j] = model->addVar(0.0, 1.0, 0.0, GRB_CONTINUOUS, varName);
+                for (int r = 0; r < num_resources; r++) {
+                    resources[r] += x[i][j] * Graph.getEdge(i, j).resources[r];
+                }
             }
             std::string varname = 'u' + std::to_string(i);
-            u[i] = model->addVar(1, num_nodes + 2, 0.0, GRB_INTEGER, varname);
+            u[i] = model->addVar(1, num_nodes, 0.0, GRB_INTEGER, varname);
         }
-        r = model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "r"); // used up resource
-        
+
+        // Used up resource initial value. When a label propagates, this constraint's LHS is increased by a (action)
+        for (int r = 0; r < num_resources; r++) {
+            std::string constrName = "usedup_cap_" + std::to_string(r);
+            model->addConstr(resources[r] <= capacities[r], constrName);
+        }
+
 
         // Add constraints
         // Sub-tour elimination
-        for (int i = 0; i < num_nodes + 2; ++i) {
-            for (int j = 0; j < num_nodes + 2; ++j) {
+        for (int i = 0; i < num_nodes; ++i) {
+            for (int j = 0; j < num_nodes; ++j) {
                 if (i != j) { // To avoid self-loops
                     std::string constrName = "st_" + std::to_string(i) + "_" + std::to_string(j);
-                    model->addConstr(u[i] + 1 <= u[j] + num_nodes+2 * (1 - x[i][j]), constrName);
+                    model->addConstr(u[i] + 1 <= u[j] + num_nodes * (1 - x[i][j]), constrName);
                 }
             }
         }
 
 
         // Equality of inflow and outflow for N\{source, sink}
-        for (int i = 1; i < num_nodes + 1; ++i) {
+        for (int i = 1; i < num_nodes; ++i) {
             GRBLinExpr inFlow = 0;
             GRBLinExpr outFlow = 0;
 
-            for (int j = 1; j < num_nodes + 1; ++j) {
+            for (int j = 1; j < num_nodes; ++j) {
                 if (i != j) { // Avoid self-loops
                     outFlow += x[i][j];  // Incoming flow to node j
                     inFlow += x[j][i]; // Outgoing flow from node j
@@ -56,7 +65,7 @@ BaseModel::BaseModel(GRBEnv& env, int num_nodes, double capacity, Graph& Graph) 
         }
         // Source outflow and sink inflow must be 1
         GRBLinExpr sourceOutFlow = 0; // Source
-        for (int i = 1; i < num_nodes + 2; ++i) {
+        for (int i = 1; i < num_nodes; ++i) {
             sourceOutFlow += x[0][i];
             }
         model->addConstr(sourceOutFlow == 1, "source_out");
@@ -65,12 +74,6 @@ BaseModel::BaseModel(GRBEnv& env, int num_nodes, double capacity, Graph& Graph) 
             sinkInFlow += x[0][i];
             }
         model->addConstr(sinkInFlow == 1, "sink_out");
-
-
-
-        // Used up resource initial value. When a label propagates, this constraint's LHS is increased by a
-        usedup_capacity = model->addConstr(r <= capacity, "usedup_apacity");
-
 
 
         // Set objective 
@@ -107,9 +110,23 @@ void BaseModel::optimize() {
 
 
 // adding the edge propagated to the model
-void BaseModel::addVisitedEdge(Edge& edge, double resource) {
+void BaseModel::addVisitedEdge(Edge& edge) {
+    try {
 
+        // Add a constraint to enforce the edge is used
+        std::string constrName = "edge_visited_" + std::to_string(edge.from) + "_" + std::to_string(edge.to);
+        model->addConstr(x[edge.from][edge.to] == 1, constrName);
+
+
+        // Optionally reoptimize the model if needed
+        model->update();  // Ensure changes are reflected in the model
+    }
+
+    catch (GRBException& e) {
+        std::cerr << "Error during edge addition: " << e.getMessage() << std::endl;
+    }
 }
+
 
 void BaseModel::displayResults() {
     try {
