@@ -3,6 +3,9 @@
 #include "Edge.h"
 #include <iostream>
 
+// the class build a linear relaxation of ESPPRC given a graph of network, number of resources, capacity of each resource
+// when a lable is propogated and the destination is defined, the corresponding edge is fixed to 1 in the relaxed ESPPRC.
+
 BaseModel::BaseModel(GRBEnv& env, int num_nodes, std::vector<float> capacities, int num_resources, Graph& Graph) 
     : x(num_nodes, std::vector<GRBVar>(num_nodes)), u(num_nodes) {
     try {
