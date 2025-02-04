@@ -7,7 +7,7 @@ Label::Label(Graph& graph, bool dir)
     : vertex(0), path({ 0 }), cost(0),
     resources(graph.num_res, 0),
     reachable(graph.num_nodes, true),
-    direction(dir), LB(0), id(0), rc(graph.num_edges, 0) {
+    direction(dir), LB(0), id(0), rc(graph.num_edges, 0), edges() { // Farzane: initialized "edges()"
     status = LabelStatus::NEW_OPEN;
     reachable[0] = false;
 	
@@ -28,6 +28,11 @@ Label::Label(const Label& parent, const Graph& graph, const Edge* edge, const do
     direction(parent.direction) {
 	vertex = direction ? edge->to : edge->from;
     cost = parent.cost + edge->cost;
+
+    //Farzane: add the edge data to visited edges by the label
+    edges.push_back(*edge);
+    //
+
     if (direction) {
         path.push_back(vertex);
     } else {
@@ -39,6 +44,7 @@ Label::Label(const Label& parent, const Graph& graph, const Edge* edge, const do
         resources[i] += edge->resources[i];
     }
     UpdateReachable(graph, UB);
+
     LB = cost+graph.max_value[vertex];
 	for (int i = 0; i < reachable.size(); i++) {
 		if (reachable[i]&& graph.max_value[i]<0) {
@@ -56,6 +62,7 @@ Label::Label(const Label& parent, const Graph& graph, const Edge* edge, const do
         status = LabelStatus::DOMINATED;
 		//std::cout << "Pruned" << std::endl;
     }
+
 }
 
 void Label::UpdateReachable(const Graph& graph, const double UB) {

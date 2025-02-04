@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_set>
 #include "Graph.h"
+#include "Edge.h"
 
 class Graph;
 class Edge;
@@ -33,6 +34,9 @@ public:
     std::vector<double> resources, rc;
     std::vector<bool> reachable;
     bool direction;
+    // Farzane: a vector of edges visited by the label
+    std::vector<Edge> edges;
+    // 
     double LB;
     LabelStatus status;
 

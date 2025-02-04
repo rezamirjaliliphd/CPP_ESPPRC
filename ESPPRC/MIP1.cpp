@@ -5,15 +5,18 @@
 #include <iostream>
 #include <unordered_map>
 
-MIP::MIP(std::vector<float> capacities, int num_resources, Graph& Graph, bool LP_relaxation)
-    : x(Graph.num_nodes, std::vector<GRBVar>(Graph.num_nodes)), u(Graph.num_nodes) {
+MIP::MIP(Graph& Graph, bool LP_relaxation)
+    : x(), u() {
     try {
         GRBEnv env = GRBEnv(true); // Initialize the Gurobi environment
+        env.set(GRB_IntParam_OutputFlag, 0);
+        env.set(GRB_IntParam_LogToConsole, 0);
         model = new GRBModel(env); // Use new to properly allocate memory for the model
         GRBLinExpr obj = 0, inflow, outflow;
         this->x.clear();
         this->u.clear();
 
+        // Define variables
         for (int i = 0; i < Graph.num_nodes; ++i) {
             for (const auto e : Graph.OutList[i]) {
                 x[i][e->to] = model->addVar(0, 1, e->cost, !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS);
@@ -22,7 +25,7 @@ MIP::MIP(std::vector<float> capacities, int num_resources, Graph& Graph, bool LP
         }
 
         for (int i = 0; i < Graph.num_nodes; i++) {
-            u[i] = model->addVar(0.0, Graph.num_nodes, 0.0, GRB_CONTINUOUS, "u[" + std::to_string(i) + "]");
+            u[i] = model->addVar(0.0, Graph.num_nodes, 0.0, !LP_relaxation ? GRB_INTEGER : GRB_CONTINUOUS, "u[" + std::to_string(i) + "]");
         }
 
         // Flow conservation constraints
@@ -78,8 +81,8 @@ MIP::~MIP() {
     delete model; // Deallocate memory for the model
 }
 
-// Method to solve the optimization problem
-float MIP::solve(std::vector<Edge>& edges) {
+// Method to solve the optimization problem with the edges fixed
+float MIP::solve_with(std::vector<Edge>& edges) {
     float objVal = -1.0;  // Initialize to an invalid value
     try {
         // Set the lower bound of each edge in the vector to 1
@@ -111,3 +114,25 @@ float MIP::solve(std::vector<Edge>& edges) {
 
     return objVal;  // Return the objective value
 }
+
+// Method to solve the model without any edges fixed
+float MIP::solve() {
+    float objVal = -1.0;  // Initialize to an invalid value
+    try {
+        model->optimize();  // Perform the optimization
+
+        // Check if the model found an optimal solution
+        if (model->get(GRB_IntAttr_Status) == GRB_OPTIMAL) {
+            objVal = model->get(GRB_DoubleAttr_ObjVal);  // Get the objective value
+        }
+        else {
+            std::cout << "No optimal solution found." << std::endl;
+        }
+    }
+    catch (GRBException& e) {
+        std::cerr << "Error during edge addition: " << e.getMessage() << std::endl;
+    }
+
+    return objVal;  // Return the objective 
+}
+

@@ -9,7 +9,7 @@
 #include "Solution.h"
 #include "Edge.h"
 #include "Utils.h"
-#include "MIP.h"
+#include "MIP1.h"
 
 
 
@@ -49,14 +49,9 @@ int main() {
     graph.getMaxValue();
     graph.getMinWeights();
     
-    auto start = std::chrono::high_resolution_clock::now();
-    //std::cout << "Exact Solution: " << std::endl;
-	solveMIP(graph, false);
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    //std::cout << "Exact Solution Time: " << duration << std::endl;
 
-    
+    // Farzane: Commented out 
+    /*
     GRBEnv env = GRBEnv(true);
     env.set(GRB_IntParam_OutputFlag, 0);
     env.set(GRB_IntParam_LogToConsole, 0);
@@ -125,9 +120,25 @@ int main() {
         }
     }
 	
-    std::cout << "First LB: " << model.get(GRB_DoubleAttr_ObjVal) << std::endl;
+    std::cout << "First LB: " << model.get(GRB_DoubleAttr_ObjVal) << std::endl; 
+    */
+    
+
+    // Build an instance of MIP as LP and IP
+    MIP ip_model(graph, false);
+    MIP lp_model(graph, true);
+
+    // Solving pure IP
+    float ip_obj;
+    auto start = std::chrono::high_resolution_clock::now();
+    ip_obj = ip_model.solve();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration_ip = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
 
+    float lp_obj;
+    lp_obj = lp_model.solve();
+    std::cout << "First LB: " << lp_obj << std::endl;
 
 
 
@@ -141,12 +152,12 @@ int main() {
     auto end_esp = std::chrono::high_resolution_clock::now();
     auto duration_esp = std::chrono::duration_cast<std::chrono::microseconds>(end_esp - start_esp).count();
     std::cout << " ESPPRC Time: " << duration_esp << std::endl;
-    std::cout << " Gurobi Time: " << duration << std::endl;
-    if (duration - duration_esp > 0) {
-        std::cout << " Gurobi is slower for " << static_cast<double>((duration - duration_esp))/duration*100<<"%" << std::endl;
+    std::cout << " Gurobi Time: " << duration_ip << std::endl;
+    if (duration_ip - duration_esp > 0) {
+        std::cout << " Gurobi is slower for " << static_cast<double>((duration_ip - duration_esp))/ duration_ip * 100<<"%" << std::endl;
     }
     else {
-		std::cout << " ESPPRC is slower for " << static_cast<double>((duration_esp - duration))/duration_esp *100<<"%" << std::endl;
+		std::cout << " ESPPRC is slower for " << static_cast<double>((duration_esp - duration_ip))/duration_esp *100<<"%" << std::endl;
     }
 
     return 0;

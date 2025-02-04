@@ -9,19 +9,22 @@
 class MIP {
 private:
     GRBModel* model;  // Pointer to the Gurobi model
-    std::vector<std::vector<GRBVar>> x;  // Declare x as a member variable
-    std::vector<GRBVar> u;  // Visit order
+    std::unordered_map<int, std::unordered_map<int, GRBVar>> x; // x as a member variables
+    std::unordered_map<int, GRBVar> u; // Visit order
 
 public:
 
     // Constructor to create the model
-    MIP(std::vector<float> capacities, int num_resources, Graph& Graph, bool LP_relaxation);
+    MIP(Graph& Graph, bool LP_relaxation);
 
     // Destructor to clean up
     ~MIP();
 
     // Method to optimize the model
-    float solve(std::vector<Edge>& edges);
+    float solve_with(std::vector<Edge>& edges);
+
+    // Method to optimize without any edges added
+    float solve();
 
 };
 
