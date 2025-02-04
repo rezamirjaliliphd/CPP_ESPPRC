@@ -85,21 +85,3 @@ void solveMIP(Graph& graph, bool LP_relaxation) {
 	std::cout << "Gurobi Path: ";
     print_vector(path);
 }
-
-// adding the edge propagated to the model
-void BaseModel::addVisitedEdge(Edge& edge) {
-    try {
-
-        // Add a constraint to enforce the edge is used
-        std::string constrName = "edge_visited_" + std::to_string(edge.from) + "_" + std::to_string(edge.to);
-        model->addConstr(x[edge.from][edge.to] == 1, constrName);
-
-
-        // Optionally reoptimize the model if needed
-        model->update();  // Ensure changes are reflected in the model
-    }
-
-    catch (GRBException& e) {
-        std::cerr << "Error during edge addition: " << e.getMessage() << std::endl;
-    }
-}

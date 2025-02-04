@@ -129,14 +129,14 @@ int main() {
     MIP lp_model(graph, true);
 
     // Solving pure IP
-    float ip_obj;
+    double ip_obj;
     auto start = std::chrono::high_resolution_clock::now();
     ip_obj = ip_model.solve();
     auto end = std::chrono::high_resolution_clock::now();
     auto duration_ip = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
 
-    float lp_obj;
+    double lp_obj;
     lp_obj = lp_model.solve();
     std::cout << "First LB: " << lp_obj << std::endl;
 

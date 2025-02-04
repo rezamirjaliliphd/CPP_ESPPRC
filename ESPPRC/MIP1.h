@@ -5,6 +5,8 @@
 #include <string>
 #include "Graph.h"
 #include "Edge.h"
+#include <unordered_map>
+#include <iostream>
 
 class MIP {
 private:
@@ -21,10 +23,10 @@ public:
     ~MIP();
 
     // Method to optimize the model
-    float solve_with(std::vector<Edge>& edges);
+    double solve_with(std::vector<Edge>& edges);
 
     // Method to optimize without any edges added
-    float solve();
+    double solve();
 
 };
 

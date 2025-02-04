@@ -82,8 +82,8 @@ MIP::~MIP() {
 }
 
 // Method to solve the optimization problem with the edges fixed
-float MIP::solve_with(std::vector<Edge>& edges) {
-    float objVal = -1.0;  // Initialize to an invalid value
+double MIP::solve_with(std::vector<Edge>& edges) {
+    double objVal = -1.0;  // Initialize to an invalid value
     try {
         // Set the lower bound of each edge in the vector to 1
         for (Edge& edge : edges) {
@@ -116,8 +116,8 @@ float MIP::solve_with(std::vector<Edge>& edges) {
 }
 
 // Method to solve the model without any edges fixed
-float MIP::solve() {
-    float objVal = -1.0;  // Initialize to an invalid value
+double MIP::solve() {
+    double objVal = -1.0;  // Initialize to an invalid value
     try {
         model->optimize();  // Perform the optimization
 
