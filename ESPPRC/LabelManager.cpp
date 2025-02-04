@@ -1,5 +1,6 @@
 #include "LabelManager.h"
 #include <iostream>
+#include "MIP1.h"
 
 LabelManager::LabelManager(int num_nodes, int num_res, Graph& graph) {
     //std::cout << "Create Labels at source and sink" << std::endl;
@@ -18,6 +19,7 @@ void LabelManager::initializeLabels(int num_nodes, int num_res, Graph& graph) {
     initialize(true, fw_labels);
     initialize(false, bw_labels);
 }
+
 
 void LabelManager::DominanceCheckInsert(Label& label) {
     int v = label.vertex;
@@ -50,6 +52,7 @@ void LabelManager::DominanceCheckInsert(Label& label) {
     }
 }
 
+
 bool LabelManager::isIDDuplicate(const int vertex, const long long fw_id, const long long bw_id) const {
     for (const Solution& solution : solutions) {
         if (solution.ID == std::make_pair(vertex, std::make_pair(fw_id, bw_id))) {
@@ -58,6 +61,7 @@ bool LabelManager::isIDDuplicate(const int vertex, const long long fw_id, const 
     }
     return false;
 }
+
 
 long long LabelManager::find_ID(bool direction, const int vertex) const {
     const auto& label_map = direction ? fw_labels : bw_labels;
@@ -79,6 +83,7 @@ long long LabelManager::find_ID(bool direction, const int vertex) const {
     return labels.rbegin()->id + 1;
 }
 
+
 void LabelManager::displayLabels() const {
     for (const auto& pair : fw_labels) {
         for (const Label& label : pair.second) {
@@ -91,6 +96,7 @@ void LabelManager::displayLabels() const {
         }
     }
 }
+
 
 void LabelManager::concatenateLabels(const std::vector<double>& res_max) {
     std::vector<int> path;
@@ -142,7 +148,7 @@ void LabelManager::displaySolutions() const {
 
 
 
-  void LabelManager::Propagate(Graph& graph, const std::vector<double>& res_max) {
+void LabelManager::Propagate(Graph& graph, const std::vector<double>& res_max, MIP* mip) { // Farzane: passed mip pointer
       //std::cout << "Line 130" << std::endl;
 
       auto propagateDirection = [&](std::map<int, std::set<Label, CompareLabel>>& label_map,
@@ -160,7 +166,7 @@ void LabelManager::displaySolutions() const {
                               //std::cout << "Edge: " << edge.from << " " << edge.to << std::endl;
                               if ((direction && it->reachable[edge->to]) ||
                                   (!direction && it->reachable[edge->from])) {
-                                  Label new_label(*it, graph, edge.get(), UB);
+                                  Label new_label(*it, graph, edge.get(), UB, mip); // Farzane: passed mip pointer
                                   
 								  if (new_label.status != LabelStatus::DOMINATED) DominanceCheckInsert(new_label);
 
@@ -186,6 +192,8 @@ void LabelManager::displaySolutions() const {
 
       
   }
+
+
 bool LabelManager::Terminate() {
     for (auto& [vertex, labels] : fw_labels) {
         for (auto& label : labels) {
@@ -204,9 +212,10 @@ bool LabelManager::Terminate() {
     return true;
 }
 
-void LabelManager::Run(Graph& graph, const std::vector<double>& res_max) {
+
+void LabelManager::Run(Graph& graph, const std::vector<double>& res_max, MIP& mip) {
     while (!Terminate()) {
-        Propagate(graph, res_max);
+        Propagate(graph, res_max, mip);
         concatenateLabels(res_max);
     }
     std::cout << "Solutions: " << std::endl;

@@ -147,7 +147,7 @@ int main() {
     LabelManager manager(n, m, graph);
     //std::cout << "manager initialized" << std::endl;
     auto start_esp = std::chrono::high_resolution_clock::now();
-    manager.Run(graph, res_max);
+    manager.Run(graph, res_max, ip_model);
 	manager.displaySolutions();
     auto end_esp = std::chrono::high_resolution_clock::now();
     auto duration_esp = std::chrono::duration_cast<std::chrono::microseconds>(end_esp - start_esp).count();

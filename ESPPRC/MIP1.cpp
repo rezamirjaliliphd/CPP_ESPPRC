@@ -116,6 +116,7 @@ double MIP::solve_with(std::vector<Edge>& edges) {
     return objVal;  // Return the objective value
 }
 
+
 // Method to solve the model without any edges fixed
 double MIP::solve() {
     double objVal = -1.0;  // Initialize to an invalid value

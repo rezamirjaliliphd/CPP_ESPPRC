@@ -22,7 +22,8 @@ Label::Label(Graph& graph, bool dir)
     
 }
 
-Label::Label(const Label& parent, const Graph& graph, const Edge* edge, const double UB)
+// Farzane: passed pointer of MIP to the label
+Label::Label(const Label& parent, const Graph& graph, const Edge* edge, const double UB, MIP* mip)
     : path(parent.path), cost(parent.cost),
     resources(parent.resources), reachable(parent.reachable),
     direction(parent.direction) {
@@ -45,12 +46,16 @@ Label::Label(const Label& parent, const Graph& graph, const Edge* edge, const do
     }
     UpdateReachable(graph, UB);
 
-    LB = cost+graph.max_value[vertex];
+    // Farzane: get LB and update it
+    LB = mip->solve_with(edges);
+
+    // Farzane: commented out
+    /*LB = cost+graph.max_value[vertex];
 	for (int i = 0; i < reachable.size(); i++) {
 		if (reachable[i]&& graph.max_value[i]<0) {
 			LB+=graph.max_value[i];
 		}
-	}
+	}*/
 
     if (reachHalfPoint(graph.res_max, graph.num_nodes)) {
         status = LabelStatus::NEW_CLOSED;

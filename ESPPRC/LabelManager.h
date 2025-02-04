@@ -10,6 +10,7 @@
 #include "Solution.h"
 #include "Graph.h"
 #include "Utils.h"
+#include "MIP1.h"
 
 struct CompareLabel {
     bool operator()(const Label& a, const Label& b) const {
@@ -42,9 +43,10 @@ public:
     void displayLabels() const;
     void concatenateLabels(const std::vector<double>& res_max);
     void displaySolutions() const;
-    void Propagate(Graph& graph, const std::vector<double>& res_max);
+    void Propagate(Graph& graph, const std::vector<double>& res_max, MIP* mip);
     bool Terminate();
-    void Run(Graph& graph, const std::vector<double>& res_max);
+    void Run(Graph& graph, const std::vector<double>& res_max, MIP& mip);
 };
 
 #endif // LABELMANAGER_H
+// , MIP& mip
