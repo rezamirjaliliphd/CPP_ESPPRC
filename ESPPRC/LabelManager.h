@@ -45,7 +45,7 @@ public:
     void displaySolutions() const;
     void Propagate(Graph& graph, const std::vector<double>& res_max, MIP* mip);
     bool Terminate();
-    void Run(Graph& graph, const std::vector<double>& res_max, MIP& mip);
+    void Run(Graph& graph, const std::vector<double>& res_max, MIP* mip);
 };
 
 #endif // LABELMANAGER_H

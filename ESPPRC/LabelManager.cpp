@@ -213,7 +213,7 @@ bool LabelManager::Terminate() {
 }
 
 
-void LabelManager::Run(Graph& graph, const std::vector<double>& res_max, MIP& mip) {
+void LabelManager::Run(Graph& graph, const std::vector<double>& res_max, MIP* mip) {
     while (!Terminate()) {
         Propagate(graph, res_max, mip);
         concatenateLabels(res_max);
