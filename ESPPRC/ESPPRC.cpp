@@ -21,13 +21,17 @@ void getRC(GRBModel& model, Graph& graph) {
 		}
 	}
 }
+
+
 int main() {
+    // preprocessing
     int n = 10, m = 5;
     std::vector<double> res_max(m,0);
 	for (int i = 0; i < m; ++i) {
 		res_max[i] = 25;
 	}
 
+    // build a random graph with n nodes and m resources
     std::srand(std::time(nullptr));
     Graph graph(n, m, res_max);
     
@@ -123,9 +127,14 @@ int main() {
 	
     std::cout << "First LB: " << model.get(GRB_DoubleAttr_ObjVal) << std::endl;
 
+
+
+
+
+    // start of algorithm
     //std::cout << "Running ESPPRC" << std::endl;
     LabelManager manager(n, m, graph);
-    //std::cout << " manager initialized" << std::endl;
+    //std::cout << "manager initialized" << std::endl;
     auto start_esp = std::chrono::high_resolution_clock::now();
     manager.Run(graph, res_max);
 	manager.displaySolutions();

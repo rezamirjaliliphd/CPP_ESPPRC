@@ -39,7 +39,10 @@
     <ClCompile Include="MIP.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="RelaxedBaseESPPRC.cpp">
+    <ClCompile Include="MIP1.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -65,7 +68,7 @@
     <ClInclude Include="MIP.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="RelaxedBaseESPPRC.h">
+    <ClInclude Include="MIP1.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

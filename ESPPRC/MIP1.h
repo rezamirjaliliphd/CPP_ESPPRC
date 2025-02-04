@@ -4,8 +4,9 @@
 #include <gurobi_c++.h>
 #include <string>
 #include "Graph.h"
+#include "Edge.h"
 
-class BaseModel {
+class MIP {
 private:
     GRBModel* model;  // Pointer to the Gurobi model
     std::vector<std::vector<GRBVar>> x;  // Declare x as a member variable
@@ -14,19 +15,14 @@ private:
 public:
 
     // Constructor to create the model
-    BaseModel(GRBEnv& env, int num_nodes, std::vector<float> capacities, int num_resources, Graph& Graph);
+    MIP(std::vector<float> capacities, int num_resources, Graph& Graph, bool LP_relaxation);
 
     // Destructor to clean up
-    ~BaseModel();
-
-    // Method to add a new edge 
-    void addVisitedEdge(Edge& edge);
+    ~MIP();
 
     // Method to optimize the model
-    void optimize();
+    float solve(std::vector<Edge>& edges);
 
-    // Method to display results
-    void displayResults();
 };
 
 #endif // RELAXEDBASEESPPRC_H

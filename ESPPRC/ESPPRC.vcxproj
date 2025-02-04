@@ -135,7 +135,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="RelaxedBaseESPPRC.cpp" />
+    <ClCompile Include="MIP1.cpp" />
     <ClCompile Include="Edge.cpp" />
     <ClCompile Include="ESPPRC.cpp" />
     <ClCompile Include="Graph.cpp" />
@@ -143,6 +143,7 @@
     <ClCompile Include="LabelManager.cpp" />
     <ClCompile Include="Solution.cpp" />
     <ClCompile Include="MIP.cpp" />
+    <ClCompile Include="Test.cpp" />
     <ClCompile Include="Utils.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -151,7 +152,7 @@
     <ClInclude Include="Label.h" />
     <ClInclude Include="LabelManager.h" />
     <ClInclude Include="MIP.h" />
-    <ClInclude Include="RelaxedBaseESPPRC.h" />
+    <ClInclude Include="MIP1.h" />
     <ClInclude Include="Solution.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
