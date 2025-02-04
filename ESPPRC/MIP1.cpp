@@ -11,6 +11,7 @@ MIP::MIP(Graph& Graph, bool LP_relaxation)
         GRBEnv env = GRBEnv(true); // Initialize the Gurobi environment
         env.set(GRB_IntParam_OutputFlag, 0);
         env.set(GRB_IntParam_LogToConsole, 0);
+        env.start();
         model = new GRBModel(env); // Use new to properly allocate memory for the model
         GRBLinExpr obj = 0, inflow, outflow;
         this->x.clear();

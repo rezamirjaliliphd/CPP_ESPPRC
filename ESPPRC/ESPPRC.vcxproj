@@ -104,14 +104,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(GUROBI_HOME)\include;;C:\Users\rezam\AppData\Local\Programs\Python\Python312\Include;C:\Users\rezam\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\_core\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(GUROBI_HOME)\include;C:\gurobi1201\win64\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(GUROBI_HOME)\lib;;C:\Users\rezam\AppData\Local\Programs\Python\Python312\Lib\site-packages</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);gurobi91.lib;gurobi_c++mdd2017.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(GUROBI_HOME)\lib;C:\gurobi1201\win64\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);gurobi120.lib;gurobi_c++mdd2017.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -122,7 +122,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(GUROBI_HOME)\include;C:\Users\rezam\source\repos\LEMON\install\include;C:\Users\rezam\AppData\Local\Programs\Python\Python312\Include;C:\Users\rezam\AppData\Local\Programs\Python\Python312\Lib\site-packages\numpy\_core\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(GUROBI_HOME)\include;C:\gurobi1201\win64\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -130,8 +130,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(GUROBI_HOME)\lib;C:\Users\rezam\source\repos\LEMON\install\lib;C:\Users\rezam\AppData\Local\Programs\Python\Python312\Lib\site-packages</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);gurobi91.lib;gurobi_c++md2017.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(GUROBI_HOME)\lib;C:\gurobi1201\win64\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);gurobi120.lib;gurobi_c++md2017.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
