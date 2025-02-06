@@ -23,7 +23,7 @@ Label::Label(Graph& graph, bool dir)
 }
 
 // Farzane: passed pointer of MIP to the label
-Label::Label(const Label& parent, const Graph& graph, const Edge* edge, const double UB, MIP* mip)
+Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double UB)
     : path(parent.path), cost(parent.cost),
     resources(parent.resources), reachable(parent.reachable),
     direction(parent.direction) {
@@ -47,7 +47,8 @@ Label::Label(const Label& parent, const Graph& graph, const Edge* edge, const do
     UpdateReachable(graph, UB);
 
     // Farzane: get LB and update it
-    LB = mip->solve_with(edges);
+    //LB = mip->solve_with(edges);
+	
 
     // Farzane: commented out
     /*LB = cost+graph.max_value[vertex];
@@ -70,10 +71,21 @@ Label::Label(const Label& parent, const Graph& graph, const Edge* edge, const do
 
 }
 
-void Label::UpdateReachable(const Graph& graph, const double UB) {
+void Label::UpdateReachable(Graph& graph, const double UB) {
+	std::map<std::pair<int, int>, double> rc;
+    double obj = 0;
+	std::pair<std::map<std::pair<int, int>, double>, double> result = graph.getRCLabel(path);
+	rc = result.first;
+	obj = result.second;
+    LB = obj;
     for (const auto e : graph.getNeighbors(vertex, direction)) {
         int neighbor = direction? e->to : e->from;
-        if (reachable[neighbor] && neighbor != 0) {
+        if (reachable[neighbor] && neighbor != 0 ) {
+            if (rc[{e->from, e->to}] > UB - LB) {
+				std::cout << "Pruned" << std::endl;
+				reachable[neighbor] = false;
+				continue;
+            }
             for (size_t i = 0; i < resources.size(); ++i) {
                 if (resources[i] + e->resources[i] > graph.res_max[i]) {
                     reachable[neighbor] = false;
@@ -82,6 +94,8 @@ void Label::UpdateReachable(const Graph& graph, const double UB) {
             }
         }
     }
+    
+
 }
 
 bool Label::reachHalfPoint(const std::vector<double>& res_max, int num_nodes) {

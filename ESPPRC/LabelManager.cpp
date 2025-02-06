@@ -148,7 +148,7 @@ void LabelManager::displaySolutions() const {
 
 
 
-void LabelManager::Propagate(Graph& graph, const std::vector<double>& res_max, MIP* mip) { // Farzane: passed mip pointer
+void LabelManager::Propagate(Graph& graph, const std::vector<double>& res_max) { // Farzane: passed mip pointer
       //std::cout << "Line 130" << std::endl;
 
       auto propagateDirection = [&](std::map<int, std::set<Label, CompareLabel>>& label_map,
@@ -166,7 +166,7 @@ void LabelManager::Propagate(Graph& graph, const std::vector<double>& res_max, M
                               //std::cout << "Edge: " << edge.from << " " << edge.to << std::endl;
                               if ((direction && it->reachable[edge->to]) ||
                                   (!direction && it->reachable[edge->from])) {
-                                  Label new_label(*it, graph, edge.get(), UB, mip); // Farzane: passed mip pointer
+                                  Label new_label(*it, graph, edge.get(), UB); // Farzane: passed mip pointer
                                   
 								  if (new_label.status != LabelStatus::DOMINATED) DominanceCheckInsert(new_label);
 
@@ -213,9 +213,9 @@ bool LabelManager::Terminate() {
 }
 
 
-void LabelManager::Run(Graph& graph, const std::vector<double>& res_max, MIP* mip) {
+void LabelManager::Run(Graph& graph, const std::vector<double>& res_max) {
     while (!Terminate()) {
-        Propagate(graph, res_max, mip);
+        Propagate(graph, res_max);
         concatenateLabels(res_max);
     }
     std::cout << "Solutions: " << std::endl;

@@ -5,7 +5,7 @@
 #include <unordered_set>
 #include "Graph.h"
 #include "Edge.h"
-#include "MIP1.h"
+//#include "MIP1.h"
 
 class Graph;
 class Edge;
@@ -42,9 +42,9 @@ public:
     LabelStatus status;
 
     Label(Graph& graph, bool dir);
-    Label(const Label& parent, const Graph& graph, const Edge* edge, const double UB, MIP* mip);
+    Label(const Label& parent, Graph& graph, const Edge* edge, const double UB);
 
-    void UpdateReachable(const Graph& graph, const double UB);
+    void UpdateReachable(Graph& graph, const double UB);
     bool reachHalfPoint(const std::vector<double>& res_max, int num_nodes);
     void display() const;
     DominanceStatus DominanceCheck(const Label& rival) const;

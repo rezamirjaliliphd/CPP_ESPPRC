@@ -94,3 +94,115 @@ Edge& Graph::getEdge(int from, int to) const {
 		}
 	}
 }
+
+void Graph::buildBaseModel(bool LP_relaxation) {
+	GRBEnv env = GRBEnv();
+    env.set(GRB_IntParam_OutputFlag, 0);
+    env.set(GRB_IntParam_LogToConsole, 0);
+    env.start();
+	model = std::make_shared<GRBModel>(env);
+	
+    GRBLinExpr obj = 0, inflow, outflow;
+	int cnt = 0;
+    
+	std::vector<GRBVar> s;
+    std::string name;
+    // Define variables
+    for (int i = 0; i < num_nodes; ++i) {
+        for (const auto e : OutList[i]) {
+            name = "x[" + std::to_string(i) + ", " + std::to_string(e->to) + "]";
+            x[{i, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1, e->cost, !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS, name));
+            obj += *x[{i, e->to}] * e->cost;
+        }
+    }
+
+    for (int i = 0; i < num_nodes; i++) {
+        name = "u[" + std::to_string(i) + "]";
+        u[i] = std::make_shared<GRBVar>(model->addVar(0.0, num_nodes, 0.0, !LP_relaxation ? GRB_INTEGER : GRB_CONTINUOUS, name));
+    }
+
+    // Flow conservation constraints
+    for (int i = 0; i < num_nodes; i++) {
+        outflow = 0;
+        inflow = 0;
+        for (const auto e : OutList[i]) {
+            outflow += *x[{e->from, e->to}];
+        }
+        for (const auto e : InList[i]) {
+            inflow += *x[{e->from, e->to}];
+        }
+        if (i == 0) {
+            model->addConstr(inflow == 1, "source");
+            model->addConstr(outflow == 1, "sink");
+        }
+        else {
+            model->addConstr(inflow == outflow, "flow_" + std::to_string(i));
+        }
+    }
+
+    // Resource constraints
+    for (int k = 0; k < num_res; ++k) {
+        GRBLinExpr constraint = 0;
+        for (int i = 0; i < num_nodes; ++i) {
+            for (const auto e : OutList[i]) {
+                constraint += *x[{e->from, e->to}] * e->resources[k];
+            }
+        }
+        s.push_back(model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt++)+"]"));
+        model->addConstr(constraint+s.back()== res_max[k], "resource_" + std::to_string(k));
+    }
+
+    // Subtour elimination constraints
+    for (int i = 0; i < num_nodes; i++) {
+        for (const auto& e : OutList[i]) {
+            name = "subtour_" + std::to_string(i) + "_" + std::to_string(e->to);
+            if (e->from == 0 || e->to == 0) continue;
+			s.push_back(model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt++) + "]"));
+            model->addConstr(*u[e->from] + 1+s.back() == *u[e->to] + num_nodes * (1 - *x[{e->to, e->from}]), name);
+        }
+    }
+    model->setObjective(obj, GRB_MINIMIZE); // Set objective function
+	model->update();
+	model->optimize();
+	GRBLinExpr lhs = 0;
+	double rc = 0;
+    /*while (model->get(GRB_DoubleAttr_ObjVal) - floor(model->get(GRB_DoubleAttr_ObjVal)) > 0.01) {
+        GRBVar* vars = model->getVars();
+        int numvars = model->get(GRB_IntAttr_NumVars);
+        for (int i = 0; i < numvars; i++) {
+			rc = vars[i].get(GRB_DoubleAttr_RC);
+			lhs += (rc - floor(rc)) * vars[i];
+        }
+		std::cout << "RHS:" << 1 - model->get(GRB_DoubleAttr_ObjVal)+ floor(model->get(GRB_DoubleAttr_ObjVal)) << std::endl;
+		s.push_back(model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt++) + "]"));
+        
+		model->addConstr(lhs-s.back()==1- model->get(GRB_DoubleAttr_ObjVal) + floor(model->get(GRB_DoubleAttr_ObjVal)), "rounding");
+		model->update();
+		model->optimize();
+		std::cout << "Objective value: " << model->get(GRB_DoubleAttr_ObjVal) << std::endl;
+    }*/
+}
+
+std::pair<std::map<std::pair<int, int>, double>, double> Graph::getRCLabel(const std::vector<int>& p) {
+    std::map<std::pair<int, int>, double> rc;
+	GRBConstr constr;
+	GRBLinExpr lhs = 0;
+    double objVal = -1.0;  // Initialize to an invalid value
+    for (size_t i = 0; i < p.size() - 1; ++i) {
+        x[{ p[i], p[i + 1] }]->set(GRB_DoubleAttr_LB, 1);  // Set the lower bound to 1
+    }
+    model->update();  // Ensure changes are reflected in the model
+    model->optimize();  // Perform the optimization
+    objVal = model->get(GRB_DoubleAttr_ObjVal);
+    for (int i = 0; i < num_nodes; i++) {
+        for (const auto& e : OutList[i]) rc[{e->from, e->to}] = x[{e->from, e->to}]->get(GRB_DoubleAttr_RC);
+    }
+	model->remove(constr);
+    for (size_t i = 0; i < p.size() - 1; ++i) {
+        x[{ p[i], p[i + 1] }]->set(GRB_DoubleAttr_LB, 0);  // Set the lower bound to 0
+    }
+    model->update();  // Ensure changes are reflected in the model
+    model->optimize();  // Perform the optimization
+    return std::make_pair(rc, objVal);
+}
+

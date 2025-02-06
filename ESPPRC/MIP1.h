@@ -5,14 +5,14 @@
 #include <string>
 #include "Graph.h"
 #include "Edge.h"
-#include <unordered_map>
+#include <map>
 #include <iostream>
 
 class MIP {
 private:
     GRBModel* model;  // Pointer to the Gurobi model
-    std::unordered_map<int, std::unordered_map<int, GRBVar>> x; // x as a member variables
-    std::unordered_map<int, GRBVar> u; // Visit order
+    std::map < std::pair<int,int>, std::shared_ptr<GRBVar>> x; // x as a member variables
+    std::map<int, std::shared_ptr<GRBVar>> u; // Visit order
 
 public:
 
@@ -23,7 +23,7 @@ public:
     ~MIP();
 
     // Method to optimize the model
-    double solve_with(std::vector<Edge>& edges);
+    double solve_with(const std::vector<int>& p);
 
     // Method to optimize without any edges added
     double solve();

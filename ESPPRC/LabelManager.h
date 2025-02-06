@@ -43,9 +43,9 @@ public:
     void displayLabels() const;
     void concatenateLabels(const std::vector<double>& res_max);
     void displaySolutions() const;
-    void Propagate(Graph& graph, const std::vector<double>& res_max, MIP* mip);
+    void Propagate(Graph& graph, const std::vector<double>& res_max);
     bool Terminate();
-    void Run(Graph& graph, const std::vector<double>& res_max, MIP* mip);
+    void Run(Graph& graph, const std::vector<double>& res_max);
 };
 
 #endif // LABELMANAGER_H

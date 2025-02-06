@@ -16,17 +16,19 @@ MIP::MIP(Graph& Graph, bool LP_relaxation)
         GRBLinExpr obj = 0, inflow, outflow;
         this->x.clear();
         this->u.clear();
-
+        std::string name;
         // Define variables
         for (int i = 0; i < Graph.num_nodes; ++i) {
             for (const auto e : Graph.OutList[i]) {
-                x[i][e->to] = model->addVar(0, 1, e->cost, !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS);
-                obj += x[i][e->to] * e->cost;
+                name = "x[" + std::to_string(i) + ", " + std::to_string(e->to) + "]";
+                x[{i, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1, e->cost, !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS),name);
+                obj += *x[{i, e->to}] * e->cost;
             }
         }
 
         for (int i = 0; i < Graph.num_nodes; i++) {
-            u[i] = model->addVar(0.0, Graph.num_nodes, 0.0, !LP_relaxation ? GRB_INTEGER : GRB_CONTINUOUS, "u[" + std::to_string(i) + "]");
+            name = "u[" + std::to_string(i) + "]";
+            u[i] = std::make_shared<GRBVar>(model->addVar(0.0, Graph.num_nodes, 0.0, !LP_relaxation ? GRB_INTEGER : GRB_CONTINUOUS, name));
         }
 
         // Flow conservation constraints
@@ -34,10 +36,10 @@ MIP::MIP(Graph& Graph, bool LP_relaxation)
             outflow = 0;
             inflow = 0;
             for (const auto e : Graph.OutList[i]) {
-                outflow += x[e->from][e->to];
+                outflow += *x[{e->from, e->to}];
             }
             for (const auto e : Graph.InList[i]) {
-                inflow += x[e->from][e->to];
+                inflow += *x[{e->from, e->to}];
             }
             if (i == 0) {
                 model->addConstr(inflow == 1, "source");
@@ -53,7 +55,7 @@ MIP::MIP(Graph& Graph, bool LP_relaxation)
             GRBLinExpr constraint = 0;
             for (int i = 0; i < Graph.num_nodes; ++i) {
                 for (const auto e : Graph.OutList[i]) {
-                    constraint += x[e->from][e->to] * e->resources[k];
+                    constraint += *x[{e->from, e->to}] * e->resources[k];
                 }
             }
             model->addConstr(constraint <= Graph.res_max[k], "resource_" + std::to_string(k));
@@ -62,10 +64,9 @@ MIP::MIP(Graph& Graph, bool LP_relaxation)
         // Subtour elimination constraints
         for (int i = 0; i < Graph.num_nodes; i++) {
             for (const auto& e : Graph.OutList[i]) {
-                if (e->from != 0 && e->to != 0) {
-                    model->addConstr(u[e->from] + 1 <= u[e->to] + Graph.num_nodes * (1 - x[e->to][e->from]), "subtour_"
-                        + std::to_string(e->from) + "_" + std::to_string(e->to));
-                }
+				name = "subtour_" + std::to_string(i) + "_" + std::to_string(e->to);
+				if (e->from == 0 || e->to == 0) continue;
+                model->addConstr(*u[e->from] + 1 <= *u[e->to] + Graph.num_nodes * (1 - *x[{e->to, e->from}]), name);
             }
         }
         model->setObjective(obj, GRB_MINIMIZE); // Set objective function
@@ -83,13 +84,13 @@ MIP::~MIP() {
 }
 
 // Method to solve the optimization problem with the edges fixed
-double MIP::solve_with(std::vector<Edge>& edges) {
+double MIP::solve_with(const std::vector<int>& p) {
     double objVal = -1.0;  // Initialize to an invalid value
     try {
         // Set the lower bound of each edge in the vector to 1
-        for (Edge& edge : edges) {
-            x[edge.from][edge.to].set(GRB_DoubleAttr_LB, 1);  // Fix the variable to 1 for the edge
-        }
+		for (size_t i = 0; i < p.size() - 1; ++i) {
+			x[{p[i], p[i + 1]}]->set(GRB_DoubleAttr_LB, 1);  // Set the lower bound to 1
+		}
 
         model->update();  // Ensure changes are reflected in the model
         model->optimize();  // Perform the optimization
@@ -103,8 +104,8 @@ double MIP::solve_with(std::vector<Edge>& edges) {
         }
 
         // Reset the lower bounds of the edges back to 0 after optimization
-        for (Edge& edge : edges) {
-            x[edge.from][edge.to].set(GRB_DoubleAttr_LB, 0);  // Set the lower bound back to 0
+        for (size_t i = 0; i < p.size() - 1; ++i) {
+            x[{p[i], p[i + 1]}]->set(GRB_DoubleAttr_LB, 0);  // Set the lower bound back to 0
         }
         model->update();
 

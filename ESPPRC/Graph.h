@@ -6,6 +6,11 @@
 #include "Edge.h"
 #include "Label.h"
 #include <memory>
+#include <gurobi_c++.h> 
+#include <map>
+#include <cmath>
+
+#define round(value, places) (std::round((value) * std::pow(10.0, (places))) / std::pow(10.0, (places)))
 
 
 class Graph {
@@ -20,6 +25,10 @@ public:
     std::vector<std::vector<double>> min_weight;
     std::vector<double> max_value;
     std::vector<double> res_max;
+	std::shared_ptr<GRBModel> model;
+	std::map<std::pair<int, int>, std::shared_ptr<GRBVar>> x;
+	std::map<int, std::shared_ptr<GRBVar>> u;
+
 
     Graph(int n, int m, std::vector<double> r_max);
 
@@ -31,6 +40,9 @@ public:
     std::vector<std::vector<double>> getMinWeights();
 	Edge& getEdge(int from, int to) const;
     void getMaxValue();
+    void buildBaseModel(bool LP_relaxation = true);
+    std::pair<std::map<std::pair<int, int>, double>, double> getRCLabel(const std::vector<int>& p);
+
 };
 
 
