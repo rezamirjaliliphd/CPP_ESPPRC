@@ -9,11 +9,11 @@ LabelManager::LabelManager(int num_nodes, int num_res, Graph& graph) {
 
 void LabelManager::initializeLabels(int num_nodes, int num_res, Graph& graph) {
     auto initialize = [&](bool dir, std::map<int, std::set<Label, CompareLabel>>& labels) {
-        //std::cout << "Initialize Labels" << std::endl;
+        std::cout << "Initialize Labels" << std::endl;
         Label initial_label(graph, dir);
         initial_label.status = LabelStatus::OPEN;
         initial_label.id = 0;
-		//initial_label.display();
+		initial_label.display();
         labels[0].insert(initial_label);
         };
     initialize(true, fw_labels);

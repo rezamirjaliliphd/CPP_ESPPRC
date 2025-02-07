@@ -7,17 +7,16 @@ Label::Label(Graph& graph, bool dir)
     : vertex(0), path({ 0 }), cost(0),
     resources(graph.num_res, 0),
     reachable(graph.num_nodes, true),
-    direction(dir), LB(0), id(0), rc(graph.num_edges, 0), edges() { // Farzane: initialized "edges()"
+    direction(dir), LB(0), id(0), rc(graph.num_edges, 0) { // Farzane: initialized "edges()"
     status = LabelStatus::NEW_OPEN;
     reachable[0] = false;
-	
-
-    LB = cost;
+    /*LB = cost;
     for (int i = 0; i < reachable.size(); i++) {
         if (reachable[i] && graph.max_value[i] < 0) {
             LB += graph.max_value[i];
         }
-    }
+    }*/
+	std::cout << "checking undreachable nodes" << std::endl;
     UpdateReachable(graph, 0);
     
 }
@@ -31,7 +30,7 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
     cost = parent.cost + edge->cost;
 
     //Farzane: add the edge data to visited edges by the label
-    edges.push_back(*edge);
+    //edges.push_back(*edge);
     //
 
     if (direction) {
@@ -74,6 +73,7 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
 void Label::UpdateReachable(Graph& graph, const double UB) {
 	std::map<std::pair<int, int>, double> rc;
     double obj = 0;
+	//std::cout << "Calculating RC" << std::endl;
 	std::pair<std::map<std::pair<int, int>, double>, double> result = graph.getRCLabel(path);
 	rc = result.first;
 	obj = result.second;
@@ -82,7 +82,7 @@ void Label::UpdateReachable(Graph& graph, const double UB) {
         int neighbor = direction? e->to : e->from;
         if (reachable[neighbor] && neighbor != 0 ) {
             if (rc[{e->from, e->to}] > UB - LB) {
-				std::cout << "Pruned" << std::endl;
+				//std::cout << "edge[" << e->from<<", "<< e->to <<"] is unreachable" << std::endl;
 				reachable[neighbor] = false;
 				continue;
             }

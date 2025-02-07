@@ -9,7 +9,7 @@
 #include "Solution.h"
 #include "Edge.h"
 #include "Utils.h"
-//#include "MIP1.h"
+#include "MIP.h"
 
 
 
@@ -33,7 +33,7 @@ int main() {
             for (int k = 0; k < m; ++k) {
                 randomResources[k] = ceil(static_cast<double>(std::rand()) / RAND_MAX * 6);
             }
-            double cost = (static_cast<double>(std::rand()) / RAND_MAX - 0.75) * 10;
+            double cost = (static_cast<double>(std::rand()) / RAND_MAX - 0.25) * 10;
             graph.addEdge(i, j, cost, randomResources);
             graph.addEdge(j, i, cost, randomResources);
         }
@@ -53,17 +53,18 @@ int main() {
 
     //// Solving pure IP
     //double ip_obj;
-    //auto start = std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::high_resolution_clock::now();
+    solveMIP(graph, false);
     //ip_obj = ip_model.solve();
-    //auto end = std::chrono::high_resolution_clock::now();
-    //auto duration_ip = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration_ip = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
 
     //double lp_obj;
     //lp_obj = lp_model.solve();
     //std::cout << "First LB: " << lp_obj << std::endl;
 
-
+	
 
  //   // start of algorithm
     std::cout << "Running ESPPRC" << std::endl;
@@ -75,7 +76,7 @@ int main() {
     auto end_esp = std::chrono::high_resolution_clock::now();
     auto duration_esp = std::chrono::duration_cast<std::chrono::microseconds>(end_esp - start_esp).count();
     std::cout << " ESPPRC Time: " << duration_esp << std::endl;
- //   std::cout << " Gurobi Time: " << duration_ip << std::endl;
+    std::cout << " Gurobi Time: " << duration_ip << std::endl;
  //   if (duration_ip - duration_esp > 0) {
  //       std::cout << " Gurobi is slower for " << static_cast<double>((duration_ip - duration_esp))/ duration_ip * 100<<"%" << std::endl;
  //   }

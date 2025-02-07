@@ -111,8 +111,8 @@ void Graph::buildBaseModel(bool LP_relaxation) {
     for (int i = 0; i < num_nodes; ++i) {
         for (const auto e : OutList[i]) {
             name = "x[" + std::to_string(i) + ", " + std::to_string(e->to) + "]";
-            x[{i, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1, e->cost, !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS, name));
-            obj += *x[{i, e->to}] * e->cost;
+            x[{i, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1, ROUND(e->cost,0), !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS, name));
+            obj += *x[{i, e->to}] * ROUND(e->cost, 0);
         }
     }
 
@@ -164,23 +164,27 @@ void Graph::buildBaseModel(bool LP_relaxation) {
     model->setObjective(obj, GRB_MINIMIZE); // Set objective function
 	model->update();
 	model->optimize();
-	GRBLinExpr lhs = 0;
-	double rc = 0;
-    /*while (model->get(GRB_DoubleAttr_ObjVal) - floor(model->get(GRB_DoubleAttr_ObjVal)) > 0.01) {
-        GRBVar* vars = model->getVars();
-        int numvars = model->get(GRB_IntAttr_NumVars);
-        for (int i = 0; i < numvars; i++) {
-			rc = vars[i].get(GRB_DoubleAttr_RC);
-			lhs += (rc - floor(rc)) * vars[i];
-        }
-		std::cout << "RHS:" << 1 - model->get(GRB_DoubleAttr_ObjVal)+ floor(model->get(GRB_DoubleAttr_ObjVal)) << std::endl;
-		s.push_back(model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt++) + "]"));
-        
-		model->addConstr(lhs-s.back()==1- model->get(GRB_DoubleAttr_ObjVal) + floor(model->get(GRB_DoubleAttr_ObjVal)), "rounding");
-		model->update();
-		model->optimize();
-		std::cout << "Objective value: " << model->get(GRB_DoubleAttr_ObjVal) << std::endl;
-    }*/
+	/*GRBLinExpr lhs = 0;
+	double rc = 0;*/
+  //  while (true) {
+  //      GRBVar* vars = model->getVars();
+  //      int numvars = model->get(GRB_IntAttr_NumVars);
+  //      for (int i = 0; i < numvars; i++) {
+		//	rc = vars[i].get(GRB_DoubleAttr_RC);
+		//	//std::cout << "RC of " << vars[i].get(GRB_StringAttr_VarName) << " is " << ROUND(rc, 3) << std::endl;
+		//	lhs += (ROUND(rc,3) - floor(ROUND(rc,3))) * vars[i];
+  //      }
+		//
+		//s.push_back(model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt++) + "]"));
+		//double rhs = 1 - ROUND(model->get(GRB_DoubleAttr_ObjVal), 3) + floor(ROUND(model->get(GRB_DoubleAttr_ObjVal), 3));
+  //      std::cout << "RHS:" << rhs << std::endl;
+		//model->addConstr(lhs-s.back() == rhs,"rounding");
+		//model->update();
+		//model->optimize();
+		//std::cout << "Objective value: " << model->get(GRB_DoubleAttr_ObjVal)/ 100000 << std::endl;
+  //      if (rhs <= 0.1) break;
+
+  //  }
 }
 
 std::pair<std::map<std::pair<int, int>, double>, double> Graph::getRCLabel(const std::vector<int>& p) {
@@ -188,7 +192,16 @@ std::pair<std::map<std::pair<int, int>, double>, double> Graph::getRCLabel(const
 	GRBConstr constr;
 	GRBLinExpr lhs = 0;
     double objVal = -1.0;  // Initialize to an invalid value
+    if (p.size() == 1) {
+
+        for (int i = 0; i < num_nodes; i++) {
+            for (const auto& e : OutList[i]) rc[{e->from, e->to}] = x[{e->from, e->to}]->get(GRB_DoubleAttr_RC);
+		}
+		objVal = model->get(GRB_DoubleAttr_ObjVal);
+		return std::make_pair(rc, objVal);
+    }
     for (size_t i = 0; i < p.size() - 1; ++i) {
+		//std::cout << "Adding constraint for edge " << p[i] << " -> " << p[i + 1] << std::endl;
         x[{ p[i], p[i + 1] }]->set(GRB_DoubleAttr_LB, 1);  // Set the lower bound to 1
     }
     model->update();  // Ensure changes are reflected in the model
@@ -197,7 +210,7 @@ std::pair<std::map<std::pair<int, int>, double>, double> Graph::getRCLabel(const
     for (int i = 0; i < num_nodes; i++) {
         for (const auto& e : OutList[i]) rc[{e->from, e->to}] = x[{e->from, e->to}]->get(GRB_DoubleAttr_RC);
     }
-	model->remove(constr);
+	//model->remove(constr);
     for (size_t i = 0; i < p.size() - 1; ++i) {
         x[{ p[i], p[i + 1] }]->set(GRB_DoubleAttr_LB, 0);  // Set the lower bound to 0
     }

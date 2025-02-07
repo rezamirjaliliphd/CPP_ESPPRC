@@ -10,7 +10,7 @@
 #include <map>
 #include <cmath>
 
-#define round(value, places) (std::round((value) * std::pow(10.0, (places))) / std::pow(10.0, (places)))
+#define ROUND(value, places) (std::round((value) * std::pow(10.0, (places))) / std::pow(10.0, (places)))
 
 
 class Graph {

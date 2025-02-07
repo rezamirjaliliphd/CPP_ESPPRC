@@ -36,7 +36,7 @@ public:
     std::vector<bool> reachable;
     bool direction;
     // Farzane: a vector of edges visited by the label
-    std::vector<Edge> edges;
+    /*std::vector<Edge> edges;*/
     // 
     double LB;
     LabelStatus status;
