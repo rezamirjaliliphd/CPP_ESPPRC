@@ -33,16 +33,31 @@ int main() {
             for (int k = 0; k < m; ++k) {
                 randomResources[k] = ceil(static_cast<double>(std::rand()) / RAND_MAX * 6);
             }
-            double cost = (static_cast<double>(std::rand()) / RAND_MAX - 0.25) * 10;
+            double cost = (static_cast<double>(std::rand()) / RAND_MAX - 0.5) * 10;
             graph.addEdge(i, j, cost, randomResources);
             graph.addEdge(j, i, cost, randomResources);
         }
     }
     graph.getMaxValue();
     graph.getMinWeights();
-	graph.buildBaseModel();
-	std::cout << "root model built with objective value: " << graph.model->get(GRB_DoubleAttr_ObjVal) << std::endl;
-
+    graph.buildBaseModel(false, false);
+	std::cout << "root model built with objective value without Subtour elm: " << graph.model->get(GRB_DoubleAttr_ObjVal) << std::endl;
+    for (int i = 0; i < n; ++i) {
+        for (auto& e : graph.OutList[i]) {
+            if (graph.x[{e->from, e->to}]->get(GRB_DoubleAttr_X) > 0) {
+                std::cout << "x[" << e->from << "," << e->to << "] = " << graph.x[{e->from, e->to}]->get(GRB_DoubleAttr_X) << std::endl;
+            }
+        }
+    }
+    graph.buildBaseModel(false,true);
+    std::cout << "root model built with objective value with Subtour elm: " << graph.model->get(GRB_DoubleAttr_ObjVal) << std::endl;
+    for (int i = 0; i < n; ++i) {
+        for (auto& e : graph.OutList[i]) {
+            if (graph.x[{e->from, e->to}]->get(GRB_DoubleAttr_X) > 0) {
+                std::cout << "x[" << e->from << "," << e->to << "] = " << graph.x[{e->from, e->to}]->get(GRB_DoubleAttr_X) << std::endl;
+            }
+        }
+    }
     
     
 	//std::cout << "Graph created" << std::endl;
@@ -75,8 +90,8 @@ int main() {
 	manager.displaySolutions();
     auto end_esp = std::chrono::high_resolution_clock::now();
     auto duration_esp = std::chrono::duration_cast<std::chrono::microseconds>(end_esp - start_esp).count();
-    std::cout << " ESPPRC Time: " << duration_esp << std::endl;
-    std::cout << " Gurobi Time: " << duration_ip << std::endl;
+    std::cout << " ESPPRC Time: " << round(duration_esp/1000000) << std::endl;
+    std::cout << " Gurobi Time: " << round(duration_ip/1000000) << std::endl;
  //   if (duration_ip - duration_esp > 0) {
  //       std::cout << " Gurobi is slower for " << static_cast<double>((duration_ip - duration_esp))/ duration_ip * 100<<"%" << std::endl;
  //   }

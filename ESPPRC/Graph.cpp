@@ -95,7 +95,7 @@ Edge& Graph::getEdge(int from, int to) const {
 	}
 }
 
-void Graph::buildBaseModel(bool LP_relaxation) {
+void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
 	GRBEnv env = GRBEnv();
     env.set(GRB_IntParam_OutputFlag, 0);
     env.set(GRB_IntParam_LogToConsole, 0);
@@ -104,15 +104,14 @@ void Graph::buildBaseModel(bool LP_relaxation) {
 	
     GRBLinExpr obj = 0, inflow, outflow;
 	int cnt = 0;
-    
-	std::vector<GRBVar> s;
+    std::map<int, GRBVar> s;
     std::string name;
     // Define variables
     for (int i = 0; i < num_nodes; ++i) {
         for (const auto e : OutList[i]) {
-            name = "x[" + std::to_string(i) + ", " + std::to_string(e->to) + "]";
-            x[{i, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1, ROUND(e->cost,0), !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS, name));
-            obj += *x[{i, e->to}] * ROUND(e->cost, 0);
+            name = "x[" + std::to_string(i) + "," + std::to_string(e->to) + "]";
+            x[{i, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1,e->cost, !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS, name));
+            obj += *x[{i, e->to}] * e->cost;
         }
     }
 
@@ -136,6 +135,9 @@ void Graph::buildBaseModel(bool LP_relaxation) {
             model->addConstr(outflow == 1, "sink");
         }
         else {
+			
+            model->addConstr(inflow<= 1);
+			cnt++;
             model->addConstr(inflow == outflow, "flow_" + std::to_string(i));
         }
     }
@@ -148,43 +150,57 @@ void Graph::buildBaseModel(bool LP_relaxation) {
                 constraint += *x[{e->from, e->to}] * e->resources[k];
             }
         }
-        s.push_back(model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt++)+"]"));
-        model->addConstr(constraint+s.back()== res_max[k], "resource_" + std::to_string(k));
+        
+        model->addConstr(constraint<= res_max[k], "resource_" + std::to_string(k));
+		cnt++;
     }
 
-    // Subtour elimination constraints
-    for (int i = 0; i < num_nodes; i++) {
-        for (const auto& e : OutList[i]) {
-            name = "subtour_" + std::to_string(i) + "_" + std::to_string(e->to);
-            if (e->from == 0 || e->to == 0) continue;
-			s.push_back(model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt++) + "]"));
-            model->addConstr(*u[e->from] + 1+s.back() == *u[e->to] + num_nodes * (1 - *x[{e->to, e->from}]), name);
+   // // Subtour elimination constraints
+    if (subtour_elm) {
+        for (int i = 0; i < num_nodes; i++) {
+            for (const auto& e : OutList[i]) {
+                name = "subtour_" + std::to_string(i) + "_" + std::to_string(e->to);
+                if (e->from == 0 || e->to == 0) continue;
+
+                model->addConstr(*u[e->from] + 1 <= *u[e->to] + num_nodes * (1 - *x[{e->to, e->from}]), name);
+
+            }
         }
     }
+    /*for (auto [key, x_] : x) {
+		if (key.first == 0 || key.second == 0) continue;
+        if (x.find({ key.second, key.first }) != x.end()) {
+            s[cnt] = model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt) + "]");
+            model->addConstr(*x_ + *x[{key.second, key.first}]+s[cnt] == 1);
+			cnt++;
+        }
+    }*/
+
     model->setObjective(obj, GRB_MINIMIZE); // Set objective function
 	model->update();
 	model->optimize();
-	/*GRBLinExpr lhs = 0;
-	double rc = 0;*/
-  //  while (true) {
-  //      GRBVar* vars = model->getVars();
-  //      int numvars = model->get(GRB_IntAttr_NumVars);
-  //      for (int i = 0; i < numvars; i++) {
-		//	rc = vars[i].get(GRB_DoubleAttr_RC);
-		//	//std::cout << "RC of " << vars[i].get(GRB_StringAttr_VarName) << " is " << ROUND(rc, 3) << std::endl;
-		//	lhs += (ROUND(rc,3) - floor(ROUND(rc,3))) * vars[i];
-  //      }
-		//
-		//s.push_back(model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt++) + "]"));
-		//double rhs = 1 - ROUND(model->get(GRB_DoubleAttr_ObjVal), 3) + floor(ROUND(model->get(GRB_DoubleAttr_ObjVal), 3));
-  //      std::cout << "RHS:" << rhs << std::endl;
-		//model->addConstr(lhs-s.back() == rhs,"rounding");
-		//model->update();
-		//model->optimize();
-		//std::cout << "Objective value: " << model->get(GRB_DoubleAttr_ObjVal)/ 100000 << std::endl;
-  //      if (rhs <= 0.1) break;
-
-  //  }
+    
+	/*int cut_num = 0;
+    while (cut_num < 10) {
+        double rc = 0, rhs = 1 + floor(ROUND(model->get(GRB_DoubleAttr_ObjVal), 5)) - ROUND(model->get(GRB_DoubleAttr_ObjVal), 5);
+        GRBLinExpr lhs=0;
+        int numVars = model->get(GRB_IntAttr_NumVars);
+        GRBVar* vars = model->getVars();
+        for (int i = 0; i < numVars; ++i) {
+            if (vars[i].get(GRB_DoubleAttr_RC) > 0) {
+                rc = ROUND(vars[i].get(GRB_DoubleAttr_RC), 5) - floor(ROUND(vars[i].get(GRB_DoubleAttr_RC), 5));
+                lhs += vars[i] * (rc);
+            }
+        }
+        s[cnt] = model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt) + "]");
+        model->addConstr(lhs - s[cnt] == 1);
+        cnt++;
+        model->update();
+        model->optimize();
+        std::cout << "root model built with objective value: " << model->get(GRB_DoubleAttr_ObjVal) << std::endl;
+		cut_num++;
+        model->
+    }*/
 }
 
 std::pair<std::map<std::pair<int, int>, double>, double> Graph::getRCLabel(const std::vector<int>& p) {

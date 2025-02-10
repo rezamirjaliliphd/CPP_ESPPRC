@@ -40,7 +40,7 @@ public:
     std::vector<std::vector<double>> getMinWeights();
 	Edge& getEdge(int from, int to) const;
     void getMaxValue();
-    void buildBaseModel(bool LP_relaxation = true);
+    void buildBaseModel(bool LP_relaxation = true, bool subtour_elm=true);
     std::pair<std::map<std::pair<int, int>, double>, double> getRCLabel(const std::vector<int>& p);
 
 };

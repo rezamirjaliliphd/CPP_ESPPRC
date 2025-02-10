@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include "Graph.h"
 #include "Edge.h"
+#include <gurobi_c++.h>
 //#include "MIP1.h"
 
 class Graph;
@@ -40,6 +41,7 @@ public:
     // 
     double LB;
     LabelStatus status;
+    std::shared_ptr<GRBModel> model=nullptr;
 
     Label(Graph& graph, bool dir);
     Label(const Label& parent, Graph& graph, const Edge* edge, const double UB);

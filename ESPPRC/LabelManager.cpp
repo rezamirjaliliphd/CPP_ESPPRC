@@ -1,6 +1,6 @@
 #include "LabelManager.h"
 #include <iostream>
-#include "MIP1.h"
+#include <memory>
 
 LabelManager::LabelManager(int num_nodes, int num_res, Graph& graph) {
     //std::cout << "Create Labels at source and sink" << std::endl;
@@ -13,7 +13,6 @@ void LabelManager::initializeLabels(int num_nodes, int num_res, Graph& graph) {
         Label initial_label(graph, dir);
         initial_label.status = LabelStatus::OPEN;
         initial_label.id = 0;
-		initial_label.display();
         labels[0].insert(initial_label);
         };
     initialize(true, fw_labels);
@@ -179,6 +178,7 @@ void LabelManager::Propagate(Graph& graph, const std::vector<double>& res_max) {
                           it = labels.erase(it);
                           labels.insert(modified_label);*/
                           const_cast<Label&>(*it).status = LabelStatus::CLOSED;
+                          //const_cast<Label&>(*it).model = nullptr;
                       }
                       
                       
