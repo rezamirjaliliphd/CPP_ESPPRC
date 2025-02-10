@@ -171,13 +171,13 @@ void LabelManager::Propagate(Graph& graph, const std::vector<double>& res_max) {
 
                               }
                           }
-
+                          it = labels.erase(it);
                           // Remove and re-insert to update the status
                           /*Label modified_label = *it;
                           modified_label.status = LabelStatus::CLOSED;
-                          it = labels.erase(it);
+                          
                           labels.insert(modified_label);*/
-                          const_cast<Label&>(*it).status = LabelStatus::CLOSED;
+                          //const_cast<Label&>(*it).status = LabelStatus::CLOSED;
                           //const_cast<Label&>(*it).model = nullptr;
                       }
                       

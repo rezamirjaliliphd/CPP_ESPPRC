@@ -40,7 +40,7 @@ int main() {
     }
     graph.getMaxValue();
     graph.getMinWeights();
-    graph.buildBaseModel(false, false);
+   /* graph.buildBaseModel(false, false);
 	std::cout << "root model built with objective value without Subtour elm: " << graph.model->get(GRB_DoubleAttr_ObjVal) << std::endl;
     for (int i = 0; i < n; ++i) {
         for (auto& e : graph.OutList[i]) {
@@ -48,8 +48,8 @@ int main() {
                 std::cout << "x[" << e->from << "," << e->to << "] = " << graph.x[{e->from, e->to}]->get(GRB_DoubleAttr_X) << std::endl;
             }
         }
-    }
-    graph.buildBaseModel(false,true);
+    }*/
+    graph.buildBaseModel(true,true);
     std::cout << "root model built with objective value with Subtour elm: " << graph.model->get(GRB_DoubleAttr_ObjVal) << std::endl;
     for (int i = 0; i < n; ++i) {
         for (auto& e : graph.OutList[i]) {
