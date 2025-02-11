@@ -104,14 +104,16 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
 	
     GRBLinExpr obj = 0, inflow, outflow;
 	int cnt = 0;
-    std::map<int, GRBVar> s;
+    std::map<int, GRBVar> y;
     std::string name;
     // Define variables
     for (int i = 0; i < num_nodes; ++i) {
+		y[i] = model->addVar(0, 1, -i, GRB_CONTINUOUS, "y[" + std::to_string(i) + "]");
+		obj += -i*y[i];
         for (const auto e : OutList[i]) {
-            name = "x[" + std::to_string(i) + "," + std::to_string(e->to) + "]";
-            x[{i, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1,e->cost, !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS, name));
-            obj += *x[{i, e->to}] * e->cost;
+            name = "x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]";
+            x[{e->from, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1,e->cost, !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS, name));
+            obj += *x[{i, e->to}] * (e->cost+i);
         }
     }
 
@@ -133,10 +135,11 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
         if (i == 0) {
             model->addConstr(inflow == 1, "source");
             model->addConstr(outflow == 1, "sink");
+			model->addConstr(y[i] == 1);
         }
         else {
 			
-            model->addConstr(inflow<= 1);
+            model->addConstr(inflow == y[i]);
 			cnt++;
             model->addConstr(inflow == outflow, "flow_" + std::to_string(i));
         }

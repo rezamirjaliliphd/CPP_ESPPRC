@@ -6,6 +6,9 @@
 #include "Graph.h"
 #include "Edge.h"
 #include <gurobi_c++.h>
+#include <map>
+#include <memory>
+
 //#include "MIP1.h"
 
 class Graph;
@@ -42,6 +45,7 @@ public:
     double LB;
     LabelStatus status;
     std::shared_ptr<GRBModel> model=nullptr;
+	
 
     Label(Graph& graph, bool dir);
     Label(const Label& parent, Graph& graph, const Edge* edge, const double UB);
@@ -51,6 +55,7 @@ public:
     void display() const;
     DominanceStatus DominanceCheck(const Label& rival) const;
     bool isConcatenable(const Label& bw_label, const std::vector<double>& r_max) const;
+	bool LBImprove(Graph& graph);
 };
 
 #endif // LABEL_H

@@ -25,7 +25,7 @@ void LabelManager::DominanceCheckInsert(Label& label) {
     auto& labels = label.direction? fw_labels[v] : bw_labels[v];
 
     bool isDominated = false;
-    for (auto it = labels.begin(); it != labels.end(); ) {
+    for (auto it = labels.begin(); it != labels.end() && it->status!=LabelStatus::CLOSED; ) {
 		DominanceStatus status = it->DominanceCheck(label); // existing_label.DominanceCheck(new_label)
 
         if (status == DominanceStatus::DOMINATED) {
@@ -152,34 +152,24 @@ void LabelManager::Propagate(Graph& graph, const std::vector<double>& res_max) {
 
       auto propagateDirection = [&](std::map<int, std::set<Label, CompareLabel>>& label_map,
           bool direction) {
-              
-			  //std::cout << "Line 135" << std::endl;
               for (auto& [vertex, labels] : label_map) {
-				  //std::cout << "Vertex: " << vertex << std::endl;   
-                  for (auto it = labels.begin(); it != labels.end();  ++it) {
-						  //std::cout << "Label: " << it->id << " vertex " << it->vertex << std::endl;
-						  /*if (direction) { std::cout << "Direction: Forward" << std::endl; }
-						  else { std::cout << "Direction: Backward" << std::endl; }*/
+                  for (auto it = labels.begin(); it != labels.end();) {
+					
                       if (it->status == LabelStatus::OPEN) {
                           for (const auto edge : graph.getNeighbors(it->vertex, direction)) {
                               //std::cout << "Edge: " << edge.from << " " << edge.to << std::endl;
                               if ((direction && it->reachable[edge->to]) ||
                                   (!direction && it->reachable[edge->from])) {
                                   Label new_label(*it, graph, edge.get(), UB); // Farzane: passed mip pointer
-                                  
 								  if (new_label.status != LabelStatus::DOMINATED) DominanceCheckInsert(new_label);
 
                               }
                           }
                           it = labels.erase(it);
-                          // Remove and re-insert to update the status
-                          /*Label modified_label = *it;
-                          modified_label.status = LabelStatus::CLOSED;
-                          
-                          labels.insert(modified_label);*/
-                          //const_cast<Label&>(*it).status = LabelStatus::CLOSED;
-                          //const_cast<Label&>(*it).model = nullptr;
-                      }
+                          break;
+                         
+					  }
+					  else  ++it;
                       
                       
                   }
