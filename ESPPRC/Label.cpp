@@ -15,7 +15,7 @@ Label::Label(Graph& graph, bool dir)
 	model->update();
 	model->optimize();
     LB = model->get(GRB_DoubleAttr_ObjVal);
-	while (LBImprove(graph));
+	//while (LBImprove(graph));
 
 	//std::cout << "checking undreachable nodes" << std::endl;
     UpdateReachable(graph, 0);
@@ -46,7 +46,7 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
     model->update();
     model->optimize();
     LB = model->get(GRB_DoubleAttr_ObjVal);
-	while (LBImprove(graph));
+	//while (LBImprove(graph));
     //std::cout << "LB: " << LB << std::endl;
 
     if (direction) {
@@ -61,6 +61,20 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
         resources[i] += edge->resources[i];
     }
     UpdateReachable(graph, UB);
+	GRBLinExpr lhs = 0;
+    double x_val = 0;
+	for (int i = 1; i < graph.num_nodes; i++) {
+		if (!reachable[i] && i!=vertex) {
+			for (const auto e : direction?graph.OutList[i]:graph.InList[i]) {
+				x_val = model->getVarByName("x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]").get(GRB_DoubleAttr_X);
+				if (x_val>0) std::cout << "x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]: " << x_val << std::endl;
+					lhs += model->getVarByName("x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]");
+			}`
+		}
+	}
+	model->addConstr(lhs <= 0);
+	model->update();
+	model->optimize();
     //LB = cost + graph.max_value[vertex];
     //for (size_t i = 0; i < reachable.size(); i++) {
     //    if (reachable[i] && graph.max_value[i] < 0) {
@@ -68,6 +82,7 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
     //        LB += graph.max_value[i];
     //    }
     //}
+
 
     if (reachHalfPoint(graph.res_max, graph.num_nodes)) {
         status = LabelStatus::NEW_CLOSED;
@@ -194,9 +209,10 @@ bool Label::LBImprove(Graph& graph) {
     enV.set(GRB_IntParam_OutputFlag, 0);
     enV.set(GRB_IntParam_LogToConsole, 0);
     GRBModel mdl = GRBModel(enV);
-    GRBLinExpr obj = 0, rhs = 0;
+    GRBLinExpr obj = 0, lhs = 0;
     std::map<std::pair<int, int>, GRBVar> w;
-    std::map<int, GRBVar> z;
+    std::map<int, GRBVar> z,z_;
+
     
     std::map<std::pair<int, int>, double > x;
     std::map<int, double> y;
@@ -216,17 +232,22 @@ bool Label::LBImprove(Graph& graph) {
 			obj += x[{e->from, e->to}] * w[{e->from, e->to}];
 			if (z.find(e->from) == z.end()) {
                 z[e->from] = mdl.addVar(0, 1, 0, GRB_BINARY, "z[" + std::to_string(e->from) + "]");
+				z_[e->from] = mdl.addVar(0, 1, 0, GRB_BINARY, "z_[" + std::to_string(e->from) + "]");
 			}
 			if (z.find(e->to) == z.end()) {
 				z[e->to] = mdl.addVar(0, 1, 0, GRB_BINARY, "z[" + std::to_string(e->to) + "]");
+				z_[e->to] = mdl.addVar(0, 1, 0, GRB_BINARY, "z_[" + std::to_string(e->to) + "]");
 			}
 			mdl.addConstr(2 * w[{e->from, e->to}] <= z[e->from] + z[e->to]);
 			mdl.addConstr(z[e->from] + z[e->to] <= w[{e->from, e->to}] + 1);
             
         }
 		obj -= z[i] * y[i];
+        lhs += z_[i];
+		mdl.addConstr(z_[i] <= z[i]);
+		obj += y[i] * z_[i];
     }
-
+	mdl.addConstr(lhs == 1);
 	
 	//std::cout << "At least one resource must be violated" << std::endl;
    
@@ -237,22 +258,24 @@ bool Label::LBImprove(Graph& graph) {
 		std::cout << "zeta: " << zeta << std::endl;
         if (zeta >0.01) {
 			
-            rhs = 0;
+            lhs = 0;
 			for (const auto& [key, w_] : w) {
 				if (w_.get(GRB_DoubleAttr_X) > 0.5) {
-					rhs += model->getVarByName("x[" + std::to_string(key.first) + "," + std::to_string(key.second) + "]");
+					lhs += model->getVarByName("x[" + std::to_string(key.first) + "," + std::to_string(key.second) + "]");
+					std::cout << key.first << " -> " << key.second << std::endl;
 				}
 			}
-			for (const auto& [key, z_] : z) {
-				if (z_.get(GRB_DoubleAttr_X) > 0.5) {
-					rhs -= model->getVarByName("y[" + std::to_string(key) + "]");
+			for (const auto& [key, Z] : z) {
+				if (Z.get(GRB_DoubleAttr_X) > 0.5  and z_[key].get(GRB_DoubleAttr_X)<0.001) {
+					lhs -= model->getVarByName("y[" + std::to_string(key) + "]");
+					std::cout << "y[" << key << "]" << std::endl;
 				}
 			}
-			model->addConstr(rhs <= 0);
+			model->addConstr(lhs <= 0);
 			model->update();
 			model->optimize();
 			LB = model->get(GRB_DoubleAttr_ObjVal);
-			std::cout << "LB: " << LB << std::endl;
+			std::cout << " New LB: " << LB << std::endl;
 			return true;
         }
 		return false;

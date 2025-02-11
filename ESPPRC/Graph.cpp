@@ -113,7 +113,7 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
         for (const auto e : OutList[i]) {
             name = "x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]";
             x[{e->from, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1,e->cost, !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS, name));
-            obj += *x[{i, e->to}] * (e->cost+i);
+            obj += *x[{e->from, e->to}] * (e->cost+i);
         }
     }
 
