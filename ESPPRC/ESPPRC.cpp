@@ -31,7 +31,7 @@ int main() {
         for (int j = i + 1; j < n; ++j) {
             std::vector<double> randomResources(m);
             for (int k = 0; k < m; ++k) {
-                randomResources[k] = ceil(static_cast<double>(std::rand()) / RAND_MAX * 6);
+                randomResources[k] = ceil(static_cast<double>(std::rand()) / RAND_MAX * 4);
             }
             double cost = (static_cast<double>(std::rand()) / RAND_MAX - 0.5) * 10;
             graph.addEdge(i, j, cost, randomResources);
@@ -40,24 +40,19 @@ int main() {
     }
     graph.getMaxValue();
     graph.getMinWeights();
-   /* graph.buildBaseModel(false, false);
-	std::cout << "root model built with objective value without Subtour elm: " << graph.model->get(GRB_DoubleAttr_ObjVal) << std::endl;
-    for (int i = 0; i < n; ++i) {
+   
+    graph.buildBaseModel();
+    std::cout << "root model objective value: " << graph.model->get(GRB_DoubleAttr_ObjVal) << std::endl;
+    /*for (int i = 0; i < n; ++i) {
         for (auto& e : graph.OutList[i]) {
             if (graph.x[{e->from, e->to}]->get(GRB_DoubleAttr_X) > 0) {
                 std::cout << "x[" << e->from << "," << e->to << "] = " << graph.x[{e->from, e->to}]->get(GRB_DoubleAttr_X) << std::endl;
             }
+        }
+        if (graph.model->getVarByName("y[" + std::to_string(i) + "]").get(GRB_DoubleAttr_X) > 0) {
+			std::cout << "y[" + std::to_string(i) + "] = " << graph.model->getVarByName("y[" + std::to_string(i) + "]").get(GRB_DoubleAttr_X) << std::endl;
         }
     }*/
-    graph.buildBaseModel(true,true);
-    std::cout << "root model built with objective value with Subtour elm: " << graph.model->get(GRB_DoubleAttr_ObjVal) << std::endl;
-    for (int i = 0; i < n; ++i) {
-        for (auto& e : graph.OutList[i]) {
-            if (graph.x[{e->from, e->to}]->get(GRB_DoubleAttr_X) > 0) {
-                std::cout << "x[" << e->from << "," << e->to << "] = " << graph.x[{e->from, e->to}]->get(GRB_DoubleAttr_X) << std::endl;
-            }
-        }
-    }
     
     
 	//std::cout << "Graph created" << std::endl;

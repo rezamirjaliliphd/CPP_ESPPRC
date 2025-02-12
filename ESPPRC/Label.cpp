@@ -10,23 +10,11 @@ Label::Label(Graph& graph, bool dir)
     direction(dir), LB(0), id(0), rc(graph.num_edges, 0) { // Farzane: initialized "edges()"
     status = LabelStatus::NEW_OPEN;
     reachable[0] = false;
-    
 	model = std::make_shared<GRBModel>(*graph.model);
 	model->update();
 	model->optimize();
-    LB = model->get(GRB_DoubleAttr_ObjVal);
-	//while (LBImprove(graph));
-
-	//std::cout << "checking undreachable nodes" << std::endl;
-    UpdateReachable(graph, 0);
-	//LB = cost + graph.max_value[0];
- //   for (size_t i = 0; i < reachable.size(); i++) {
- //       if (reachable[i] && graph.max_value[i] < 0) {
-	//		//std::cout << "Node " << i << " is reachable" << std::endl;
-	//		LB += graph.max_value[i];
- //       }
- //   }
-    
+    LB = graph.model->get(GRB_DoubleAttr_ObjVal);
+    UpdateReachable(graph, 0);   
 }
 
 // Farzane: passed pointer of MIP to the label
@@ -36,52 +24,25 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
     direction(parent.direction) {
     vertex = direction ? edge->to : edge->from;
     cost = parent.cost + edge->cost;
-
-    //Farzane: add the edge data to visited edges by the label
-    //edges.push_back(*edge);
-    //
     model = std::make_shared<GRBModel>(*parent.model);
     std::string var_name = "x[" + std::to_string(edge->from) + "," + std::to_string(edge->to) + "]";
-    model->addConstr(model->getVarByName(var_name) == 1, "edge_" + std::to_string(edge->from) + "_" + std::to_string(edge->to));
+    model->getVarByName(var_name).set(GRB_DoubleAttr_LB,1);
     model->update();
     model->optimize();
+    //LB = model->get(GRB_DoubleAttr_ObjVal);
+	//std::cout << "Graph model objective value: " << graph.model->get(GRB_DoubleAttr_ObjVal)<< " Label model: "<< model->get(GRB_DoubleAttr_ObjVal) << std::endl;
     LB = model->get(GRB_DoubleAttr_ObjVal);
-	//while (LBImprove(graph));
-    //std::cout << "LB: " << LB << std::endl;
+    if (direction) path.push_back(vertex);
+    else path.insert(path.begin(), vertex);
 
-    if (direction) {
-        path.push_back(vertex);
-    }
-    else {
-        path.insert(path.begin(), vertex);
-    }
     reachable[vertex] = false;
     reachable[0] = false;
     for (size_t i = 0; i < resources.size(); ++i) {
         resources[i] += edge->resources[i];
     }
     UpdateReachable(graph, UB);
-	GRBLinExpr lhs = 0;
-    double x_val = 0;
-	for (int i = 1; i < graph.num_nodes; i++) {
-		if (!reachable[i] && i!=vertex) {
-			for (const auto e : direction?graph.OutList[i]:graph.InList[i]) {
-				x_val = model->getVarByName("x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]").get(GRB_DoubleAttr_X);
-				if (x_val>0) std::cout << "x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]: " << x_val << std::endl;
-					lhs += model->getVarByName("x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]");
-			}`
-		}
-	}
-	model->addConstr(lhs <= 0);
-	model->update();
-	model->optimize();
-    //LB = cost + graph.max_value[vertex];
-    //for (size_t i = 0; i < reachable.size(); i++) {
-    //    if (reachable[i] && graph.max_value[i] < 0) {
-    //        //std::cout << "Node " << i << " is reachable" << std::endl;
-    //        LB += graph.max_value[i];
-    //    }
-    //}
+	
+    
 
 
     if (reachHalfPoint(graph.res_max, graph.num_nodes)) {
@@ -99,34 +60,67 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
 }
 
 
-
-void Label::UpdateReachable(Graph & graph, const double UB) {
-    std::string var_name;
-    for (const auto e : graph.getNeighbors(vertex, direction)) {
-        int neighbor = direction ? e->to : e->from;
-        if (reachable[neighbor] && neighbor != 0) {
-            //var_name = "x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]";
-    //         if (model->getVarByName(var_name).get(GRB_DoubleAttr_RC) > UB - LB) {
-    //             reachable[neighbor] = false;
-    //             //std::cout << "UB: " << UB << " LB: " << LB;
-            //	//std::cout << " RC "+var_name+": " << model->getVarByName(var_name).get(GRB_DoubleAttr_RC) << std::endl;
-    //         }
-    //         else {
-            for (size_t i = 0; i < resources.size(); ++i) {
-                if (resources[i] + e->resources[i] > graph.res_max[i]) reachable[neighbor] = false;
+void Label::getUpdateMinRes(Graph& graph) {
+    for (int i = 0; i < graph.num_nodes; i++) {
+        if ((i == 0)||(i==vertex)|| reachable[i]) {
+            for (const auto e : graph.getNeighbors(i, direction)) {
+                int neighbor = direction ? e->to : e->from;
+                if (reachable[neighbor]) {
+					for (int k = 0; k < graph.num_res; k++) {
+						if (min_res.find({ i,k }) == min_res.end())  min_res[{i, k}] = e->resources[k];
+						else min_res[{i, k}] = std::min(min_res[{i, k}], e->resources[k]);
+					}
+                  
+                }
             }
+        
         }
     }
 }
-    //}
-	/*for (int i = 1; i < graph.num_nodes; ++i) {
-		var_name = "u[" + std::to_string(i) + "]";
+void Label::UpdateReachable(Graph& graph, const double UB) {
+    std::string var_name;
+    bool ind = true;
+    for (int i = 1; i < graph.num_nodes; ++i) {
+        ind = (reachable[i] && model->getVarByName("u[" + std::to_string(i) + "]").get(GRB_DoubleAttr_RC) > UB - LB);
+		ind = ind && (model->getVarByName("y[" + std::to_string(i) + "]").get(GRB_DoubleAttr_RC) > UB - LB);
+        if (ind) reachable[i] = false;
+    }
+    
+    for (const auto e : graph.getNeighbors(vertex, direction)) {
+        int neighbor = direction ? e->to : e->from;
+        if (reachable[neighbor] && neighbor != 0) {
+            var_name = "x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]";
+            if (model->getVarByName(var_name).get(GRB_DoubleAttr_RC) > UB - LB)  reachable[neighbor] = false;
+        }
+    }
+	//getUpdateMinRes(graph);
 
-		if (reachable[i] && model->getVarByName(var_name).get(GRB_DoubleAttr_RC) > UB - LB) {
-            std::cout << "RC " + var_name + " " << model->getVarByName(var_name).get(GRB_DoubleAttr_RC) << std::endl;
-			reachable[i] = false;
-		}
-	}*/
+    for (const auto e : graph.getNeighbors(vertex, direction)) {
+        int neighbor = direction ? e->to : e->from;
+        if (reachable[neighbor]) {
+            for (int k = 0; k < graph.num_res; k++) {
+				//std::cout << resources[k] + e->resources[k] + (direction ? graph.OutList[neighbor][0]->resources[k] : graph.InList[0][neighbor]->resources[k]) << " <= " << graph.res_max[k] << std::endl;
+                if (resources[k] + e->resources[k] > graph.res_max[k]) {
+                    reachable[neighbor] = false;
+                    break;
+                }
+            }
+        }
+    }
+	std::cout << "Updating y for  nodes" << std::endl;
+	for (int i = 1; i < graph.num_nodes; i++) {
+		if (reachable[i]) continue;
+        for (const int& j : path) {
+			if (i == j) continue;
+            std::string var_name = "y[" + std::to_string(i) + "]";
+            model->getVarByName(var_name).set(GRB_DoubleAttr_UB, 0);
+			break;
+        }
+	}
+	model->update();
+	model->optimize();
+   
+}
     
 
 bool Label::reachHalfPoint(const std::vector<double>& res_max, int num_nodes) {
