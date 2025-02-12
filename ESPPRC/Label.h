@@ -38,7 +38,6 @@ public:
     double cost;
     std::vector<double> resources, rc;
     std::vector<bool> reachable;
-    bool direction;
     // Farzane: a vector of edges visited by the label
     /*std::vector<Edge> edges;*/
     // 
@@ -47,7 +46,7 @@ public:
     std::shared_ptr<GRBModel> model=nullptr;
     std::map<std::pair<int, int>, double> min_res;
 
-    Label(Graph& graph, bool dir);
+    Label(Graph& graph);
     Label(const Label& parent, Graph& graph, const Edge* edge, const double UB);
 
     void UpdateReachable(Graph& graph, const double UB);
@@ -57,6 +56,7 @@ public:
     bool isConcatenable(const Label& bw_label, const std::vector<double>& r_max) const;
 	bool LBImprove(Graph& graph);
 	void getUpdateMinRes(Graph& graph);
+	bool isInPath(int node) const;
 };
 
 #endif // LABEL_H

@@ -174,9 +174,7 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
     /*for (auto [key, x_] : x) {
 		if (key.first == 0 || key.second == 0) continue;
         if (x.find({ key.second, key.first }) != x.end()) {
-            s[cnt] = model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt) + "]");
-            model->addConstr(*x_ + *x[{key.second, key.first}]+s[cnt] == 1);
-			cnt++;
+            model->addConstr(*x_ + *x[{key.second, key.first}]<= 1);
         }
     }*/
 

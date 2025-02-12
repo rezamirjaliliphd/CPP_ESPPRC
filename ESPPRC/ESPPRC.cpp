@@ -81,15 +81,15 @@ int main() {
     LabelManager manager(n, m, graph);
     std::cout << "manager initialized" << std::endl;
     auto start_esp = std::chrono::high_resolution_clock::now();
-    manager.Run(graph, res_max);
+    manager.Run(graph);
 	manager.displaySolutions();
     auto end_esp = std::chrono::high_resolution_clock::now();
     auto duration_esp = std::chrono::duration_cast<std::chrono::microseconds>(end_esp - start_esp).count();
     if (duration_esp > duration_ip) {
-		std::cout << " ESPPRC is slower for " << static_cast<double>((duration_esp - duration_ip)) / duration_esp * 100 << "%" << std::endl;
+		std::cout << " ESPPRC is " << static_cast<double>(duration_esp / duration_ip) << " times slower!" << std::endl;
 	}
     else {
-        std::cout << " Gurobi is slower for " << static_cast<double>((duration_ip - duration_esp)) / duration_ip * 100 << "%" << std::endl;
+        std::cout << " Gurobi is slower for " << static_cast<double>(duration_ip / duration_esp) << "times slower." << std::endl;
     }
     /*std::cout << " ESPPRC Time: " << round(duration_esp/1000000) << std::endl;
     std::cout << " Gurobi Time: " << round(duration_ip/1000000) << std::endl;*/

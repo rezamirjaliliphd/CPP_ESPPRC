@@ -1,6 +1,6 @@
 #include "Solution.h"
 
-Solution::Solution(const std::vector<int>& p, double c, std::pair<int, std::pair<long long, long long>> id)
+Solution::Solution(const std::vector<int>& p, double c, std::tuple<int, long long, long long> id)
     : path(p), cost(c), ID(id) {
 }
 

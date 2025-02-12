@@ -8,29 +8,27 @@ LabelManager::LabelManager(int num_nodes, int num_res, Graph& graph) {
 }
 
 void LabelManager::initializeLabels(int num_nodes, int num_res, Graph& graph) {
-    auto initialize = [&](bool dir, std::map<int, std::set<Label, CompareLabel>>& labels) {
-        std::cout << "Initialize Labels" << std::endl;
-        Label initial_label(graph, dir);
-        initial_label.status = LabelStatus::OPEN;
-        initial_label.id = 0;
-        labels[0].insert(initial_label);
-        };
-    initialize(true, fw_labels);
-    initialize(false, bw_labels);
+
+	Labels[0].emplace(Label(graph));
+	Labels[0].begin()->display();
+    best_open_label = 0;
 }
 
 
 void LabelManager::DominanceCheckInsert(Label& label) {
     int v = label.vertex;
-    auto& labels = label.direction? fw_labels[v] : bw_labels[v];
-
+   
     bool isDominated = false;
-    for (auto it = labels.begin(); it != labels.end() && it->status!=LabelStatus::CLOSED; ) {
+	if (Labels.find(v) == Labels.end()) {
+		Labels[v].emplace(std::move(label));
+		if (label.LB < Labels[best_open_label].begin()->LB) {
+			best_open_label = v;
+		}
+		return;
+	}
+    for (auto it = Labels[v].begin(); it != Labels[v].end() && it->status != LabelStatus::CLOSED; ) {
 		DominanceStatus status = it->DominanceCheck(label); // existing_label.DominanceCheck(new_label)
-
-        if (status == DominanceStatus::DOMINATED) {
-            it = labels.erase(it);
-        }
+        if (status == DominanceStatus::DOMINATED) it = Labels[v].erase(it);
         else if (status == DominanceStatus::DOMINATES) {
             isDominated = true;
             return;
@@ -40,10 +38,13 @@ void LabelManager::DominanceCheckInsert(Label& label) {
         }
     }
     if (!isDominated) {
-        label.id = find_ID(label.direction, label.vertex);
-		//label.display();
+        label.id = find_ID(v);
+		label.display();
         label.status = (label.status == LabelStatus::NEW_CLOSED) ? LabelStatus::CLOSED : LabelStatus::OPEN;
-        labels.emplace(std::move(label));
+        Labels[v].emplace(std::move(label));
+		if (label.LB < Labels[best_open_label].begin()->LB) {
+			best_open_label = v;
+		}
 
     }
     else {
@@ -53,74 +54,38 @@ void LabelManager::DominanceCheckInsert(Label& label) {
 
 
 bool LabelManager::isIDDuplicate(const int vertex, const long long fw_id, const long long bw_id) const {
-    for (const Solution& solution : solutions) {
-        if (solution.ID == std::make_pair(vertex, std::make_pair(fw_id, bw_id))) {
-            return true;
-        }
-    }
-    return false;
+   
+    return IDs.find(std::make_tuple(vertex,fw_id,bw_id))!=IDs.end();
 }
 
 
-long long LabelManager::find_ID(bool direction, const int vertex) const {
-    const auto& label_map = direction ? fw_labels : bw_labels;
-
+long long LabelManager::find_ID(const int vertex) const {
     // Check if the vertex exists in the map
-    auto it = label_map.find(vertex);
-    if (it == label_map.end()) {
-        return 1;  // If no labels exist for this vertex, return 1 as the first ID
-    }
-
-    const auto& labels = it->second;
-
-    // If the set is empty, return 1 as the first ID
-    if (labels.empty()) {
-        return 1;
-    }
-
+    if (Labels.find(vertex) == Labels.end())  return 1;  // If no labels exist for this vertex, return 1 as the first ID
     // Use rbegin() to access the label with the highest ID
-    return labels.rbegin()->id + 1;
+    return Labels.at(vertex).rbegin()->id + 1;
 }
 
 
 void LabelManager::displayLabels() const {
-    for (const auto& pair : fw_labels) {
-        for (const Label& label : pair.second) {
-            label.display();
-        }
-    }
-    for (const auto& pair : bw_labels) {
-        for (const Label& label : pair.second) {
-            label.display();
-        }
+    for (const auto& pair : Labels) {
+        for (const Label& label : pair.second) label.display();
     }
 }
 
 
-void LabelManager::concatenateLabels(const std::vector<double>& res_max) {
+void LabelManager::concatenateLabels(const Graph& graph) {
     std::vector<int> path;
     #pragma omp parallel for private(path)
-    for (auto& [vertex, f_labels] : fw_labels) {
-        if (vertex == 0) continue;
-
-        // Find the corresponding backward labels for this vertex
-        auto bw_it = bw_labels.find(vertex);
-        if (bw_it == bw_labels.end()) continue;
-
-        auto& b_labels = bw_it->second;
-
-        for (auto fit = f_labels.begin(); fit != f_labels.end(); ++fit) {
-            /*if (fit->status != LabelStatus::OPEN) continue;*/
-
-            for (auto bit = b_labels.begin(); bit != b_labels.end(); ++bit) {
-                //if (bit->status != LabelStatus::OPEN) continue;
-
-                // Skip if IDs are duplicate or labels are not concatenable
-                if (isIDDuplicate(vertex, fit->id, bit->id) || !fit->isConcatenable(*bit, res_max)) continue;
+    for (int v = 1; v < graph.num_nodes; v++) {
+        for (auto fit = Labels[v].begin(); fit != Labels[v].end(); ++fit) {
+            for (auto bit = std::next(fit); bit != Labels[v].end(); ++bit) {
+                
+                if (isIDDuplicate(v, fit->id, bit->id) || !fit->isConcatenable(*bit, graph.res_max)) continue;
 
                 // Concatenate paths efficiently
                 path = fit->path;
-                path.insert(path.end(), bit->path.begin() + 1, bit->path.end());
+                path.insert(path.end(), bit->path.rbegin() + 1, bit->path.rend());
 
                 // Calculate the new cost
                 double cost = fit->cost + bit->cost;
@@ -129,9 +94,9 @@ void LabelManager::concatenateLabels(const std::vector<double>& res_max) {
                 // Check and update UB
                 #pragma omp critical
                 if (cost < UB) {
-                    solutions.emplace_back(Solution(path, cost, std::make_pair(vertex, std::make_pair(fit->id, bit->id))));
+                    solutions.emplace_back(Solution(path, cost, { v,fit->id, bit->id }));
                     UB = cost;
-                    //std::cout << "New UB: " << UB << std::endl;
+                    std::cout << "New UB: " << UB << std::endl;
                 }
             }
         }
@@ -147,66 +112,43 @@ void LabelManager::displaySolutions() const {
 
 
 
-void LabelManager::Propagate(Graph& graph, const std::vector<double>& res_max) { // Farzane: passed mip pointer
-      //std::cout << "Line 130" << std::endl;
+void LabelManager::Propagate(Graph& graph) {    
+	int v = best_open_label;
+	std::cout << "Propagating from best label's vertex " << v << std::endl;
+    for (auto it = Labels[v].begin(); it != Labels[v].end();) {		
+        if (it->status == LabelStatus::OPEN) {
+            for (const auto edge : graph.OutList[it->vertex]) {
+				std::cout << "adding edge from " << it->vertex << " to " << edge->to << std::endl;
+                if (it->reachable[edge->to]) {
+                    Label new_label(*it, graph, edge.get(), UB);
+					new_label.display();
+					if (new_label.status != LabelStatus::DOMINATED) DominanceCheckInsert(new_label);
 
-      auto propagateDirection = [&](std::map<int, std::set<Label, CompareLabel>>& label_map,
-          bool direction) {
-              for (auto& [vertex, labels] : label_map) {
-                  for (auto it = labels.begin(); it != labels.end();) {
-					
-                      if (it->status == LabelStatus::OPEN) {
-                          for (const auto edge : graph.getNeighbors(it->vertex, direction)) {
-                              //std::cout << "Edge: " << edge.from << " " << edge.to << std::endl;
-                              if ((direction && it->reachable[edge->to]) ||
-                                  (!direction && it->reachable[edge->from])) {
-                                  Label new_label(*it, graph, edge.get(), UB); // Farzane: passed mip pointer
-								  if (new_label.status != LabelStatus::DOMINATED) DominanceCheckInsert(new_label);
-
-                              }
-                          }
-                          it = labels.erase(it);
-                          break;
-                         
-					  }
-					  else  ++it;
-                      
-                      
-                  }
-              }
-              
-          };
-
-      propagateDirection(fw_labels, true);
-      propagateDirection(bw_labels, false);
-
-      
+                }
+            }
+        Labels[v].erase(it);
+        break;           
+		}
+		else  ++it;                        
+    }   
   }
 
 
-bool LabelManager::Terminate() {
-    for (auto& [vertex, labels] : fw_labels) {
-        for (auto& label : labels) {
-            if (label.status == LabelStatus::OPEN) {
-                return false;
-            }
-        }
-    }
-    for (auto& [vertex, labels] : bw_labels) {
-        for (auto& label : labels) {
-            if (label.status == LabelStatus::OPEN) {
-                return false;
-            }
+bool LabelManager::Terminate(Graph& graph) {
+    for (int v = 0; v < graph.num_nodes; v++) {
+        if (Labels[v].empty()) continue;
+        for (const Label& label : Labels[v]) {
+            if (label.status == LabelStatus::OPEN) return false;
         }
     }
     return true;
 }
 
 
-void LabelManager::Run(Graph& graph, const std::vector<double>& res_max) {
-    while (!Terminate()) {
-        Propagate(graph, res_max);
-        concatenateLabels(res_max);
+void LabelManager::Run(Graph& graph) {
+    while (!Terminate(graph)) {
+        Propagate(graph);
+        concatenateLabels(graph);
     }
     std::cout << "Solutions: " << std::endl;
     displaySolutions();

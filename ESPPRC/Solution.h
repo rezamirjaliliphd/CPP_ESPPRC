@@ -9,9 +9,9 @@ class Solution {
 public:
     std::vector<int> path;
     double cost;
-    std::pair<int, std::pair<long long, long long>> ID;
+    std::tuple<int, long long, long long> ID;
 
-    Solution(const std::vector<int>& p, double c, std::pair<int, std::pair<long long, long long>> id);
+    Solution(const std::vector<int>& p, double c, std::tuple<int, long long, long long> id);
 
     void display() const;
 };

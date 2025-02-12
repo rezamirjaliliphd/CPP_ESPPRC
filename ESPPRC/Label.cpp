@@ -3,13 +3,13 @@
 #include <cmath>
 #include <algorithm>
 
-Label::Label(Graph& graph, bool dir)
+Label::Label(Graph& graph)
     : vertex(0), path({ 0 }), cost(0),
     resources(graph.num_res, 0),
-    reachable(graph.num_nodes, true),
-    direction(dir), LB(0), id(0), rc(graph.num_edges, 0) { // Farzane: initialized "edges()"
-    status = LabelStatus::NEW_OPEN;
+    reachable(graph.num_nodes, true), LB(0), id(0), rc(graph.num_edges, 0) { // Farzane: initialized "edges()"
+    status = LabelStatus::OPEN;
     reachable[0] = false;
+	id = 0;
 	model = std::make_shared<GRBModel>(*graph.model);
 	model->update();
 	model->optimize();
@@ -20,20 +20,16 @@ Label::Label(Graph& graph, bool dir)
 // Farzane: passed pointer of MIP to the label
 Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double UB)
     : path(parent.path), cost(parent.cost),
-    resources(parent.resources), reachable(parent.reachable),
-    direction(parent.direction) {
-    vertex = direction ? edge->to : edge->from;
+    resources(parent.resources), reachable(parent.reachable){
+    vertex =  edge->to;
     cost = parent.cost + edge->cost;
     model = std::make_shared<GRBModel>(*parent.model);
     std::string var_name = "x[" + std::to_string(edge->from) + "," + std::to_string(edge->to) + "]";
     model->getVarByName(var_name).set(GRB_DoubleAttr_LB,1);
     model->update();
     model->optimize();
-    //LB = model->get(GRB_DoubleAttr_ObjVal);
-	//std::cout << "Graph model objective value: " << graph.model->get(GRB_DoubleAttr_ObjVal)<< " Label model: "<< model->get(GRB_DoubleAttr_ObjVal) << std::endl;
     LB = model->get(GRB_DoubleAttr_ObjVal);
-    if (direction) path.push_back(vertex);
-    else path.insert(path.begin(), vertex);
+    path.push_back(vertex);
 
     reachable[vertex] = false;
     reachable[0] = false;
@@ -63,9 +59,8 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
 void Label::getUpdateMinRes(Graph& graph) {
     for (int i = 0; i < graph.num_nodes; i++) {
         if ((i == 0)||(i==vertex)|| reachable[i]) {
-            for (const auto e : graph.getNeighbors(i, direction)) {
-                int neighbor = direction ? e->to : e->from;
-                if (reachable[neighbor]) {
+            for (const auto e : graph.OutList[i]) {
+                if (reachable[e->to]) {
 					for (int k = 0; k < graph.num_res; k++) {
 						if (min_res.find({ i,k }) == min_res.end())  min_res[{i, k}] = e->resources[k];
 						else min_res[{i, k}] = std::min(min_res[{i, k}], e->resources[k]);
@@ -83,11 +78,17 @@ void Label::UpdateReachable(Graph& graph, const double UB) {
     for (int i = 1; i < graph.num_nodes; ++i) {
         ind = (reachable[i] && model->getVarByName("u[" + std::to_string(i) + "]").get(GRB_DoubleAttr_RC) > UB - LB);
 		ind = ind && (model->getVarByName("y[" + std::to_string(i) + "]").get(GRB_DoubleAttr_RC) > UB - LB);
-        if (ind) reachable[i] = false;
+        if (ind) { 
+            reachable[i] = false;
+            model->getVarByName("y[" + std::to_string(i) + "]").set(GRB_DoubleAttr_UB, 0);
+            model->update();
+            model->optimize();
+			LB = model->get(GRB_DoubleAttr_ObjVal);
+        }
     }
     
-    for (const auto e : graph.getNeighbors(vertex, direction)) {
-        int neighbor = direction ? e->to : e->from;
+    for (const auto e : graph.OutList[vertex]) {
+        int neighbor =  e->to;
         if (reachable[neighbor] && neighbor != 0) {
             var_name = "x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]";
             if (model->getVarByName(var_name).get(GRB_DoubleAttr_RC) > UB - LB)  reachable[neighbor] = false;
@@ -95,30 +96,20 @@ void Label::UpdateReachable(Graph& graph, const double UB) {
     }
 	//getUpdateMinRes(graph);
 
-    for (const auto e : graph.getNeighbors(vertex, direction)) {
-        int neighbor = direction ? e->to : e->from;
+    for (const auto e : graph.OutList[vertex]) {
+        int neighbor = e->to;
         if (reachable[neighbor]) {
             for (int k = 0; k < graph.num_res; k++) {
-				//std::cout << resources[k] + e->resources[k] + (direction ? graph.OutList[neighbor][0]->resources[k] : graph.InList[0][neighbor]->resources[k]) << " <= " << graph.res_max[k] << std::endl;
-                if (resources[k] + e->resources[k] > graph.res_max[k]) {
+                if (resources[k] + e->resources[k]+ graph.getEdge(neighbor,0).resources[k] > graph.res_max[k]) {
                     reachable[neighbor] = false;
                     break;
                 }
             }
         }
     }
-	std::cout << "Updating y for  nodes" << std::endl;
-	for (int i = 1; i < graph.num_nodes; i++) {
-		if (reachable[i]) continue;
-        for (const int& j : path) {
-			if (i == j) continue;
-            std::string var_name = "y[" + std::to_string(i) + "]";
-            model->getVarByName(var_name).set(GRB_DoubleAttr_UB, 0);
-			break;
-        }
-	}
-	model->update();
-	model->optimize();
+	
+
+	
    
 }
     
@@ -135,11 +126,15 @@ bool Label::reachHalfPoint(const std::vector<double>& res_max, int num_nodes) {
     return false;
 }
 
-
+bool Label::isInPath(int node) const {
+	for (const int i : path) {
+		if (i == node) return true;
+	}
+	return false;
+}
 
 void Label::display() const {
     std::cout << "=========================\n";
-    std::cout << "Direction: " << (direction? "Forward" : "Backward") << std::endl;
     std::cout << "Path: ";
     for (int node : path) {
         std::cout << node << " ";
@@ -186,16 +181,18 @@ DominanceStatus Label::DominanceCheck(const Label& rival) const {
     return DominanceStatus::INCOMPARABLE;
 }
 
-bool Label::isConcatenable(const Label& bw_label, const std::vector<double>& r_max) const {
+bool Label::isConcatenable(const Label& label, const std::vector<double>& r_max) const {
     for (size_t i = 0; i < resources.size(); ++i) {
-        if (resources[i] + bw_label.resources[i] > r_max[i]) {
+        if (resources[i] + label.resources[i] > r_max[i]) {
             return false;
         }
     }
 
-    std::unordered_set<int> first_set(path.begin() + 1, path.end());
-    return std::none_of(bw_label.path.begin() + 1, bw_label.path.end() - 1,
-        [&first_set](const int& x) { return first_set.count(x) > 0; });
+	for (const int& i : path) {
+		if (i == vertex || i == 0) continue;
+		if (label.isInPath(i)) return false;
+	}
+	return true;
 }
 
 bool Label::LBImprove(Graph& graph) {

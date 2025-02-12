@@ -32,20 +32,21 @@ class LabelManager {
 public:
     double UB = 1000;
     std::vector<Solution> solutions;
-    std::map<int, std::set<Label, CompareLabel>> fw_labels, bw_labels;
-
+    std::map<int, std::set<Label, CompareLabel>> Labels;
+	std::set<std::tuple<int, long long, long long>> IDs;
+    int best_open_label= 0;
     LabelManager(int num_nodes, int num_res, Graph& graph);
 
     void initializeLabels(int num_nodes, int num_res, Graph& graph);
     void DominanceCheckInsert(Label& label);
     bool isIDDuplicate(const int vertex, const long long fw_id, const long long bw_id) const;
-    long long find_ID(bool direction, const int vertex) const;
+    long long find_ID(const int vertex) const;
     void displayLabels() const;
-    void concatenateLabels(const std::vector<double>& res_max);
+    void concatenateLabels(const Graph& graph);
     void displaySolutions() const;
-    void Propagate(Graph& graph, const std::vector<double>& res_max);
-    bool Terminate();
-    void Run(Graph& graph, const std::vector<double>& res_max);
+    void Propagate(Graph& graph);
+    bool Terminate(Graph& graph);
+    void Run(Graph& graph);
 };
 
 #endif // LABELMANAGER_H
