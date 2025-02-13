@@ -143,19 +143,20 @@ void Label::display() const {
     for (size_t i = 0; i < resources.size(); ++i) {
         std::cout << resources[i] << (i + 1 < resources.size() ? ", " : "");
     }
-    std::cout << "]\n";
+    std::cout << "] Reachables: {";
     for (size_t i = 0; i < reachable.size(); ++i) {
         if (reachable[i]) {
-            std::cout << "Node " << i << " is reachable\n";
+            std::cout << i << (i + 1 < reachable.size() ? ", " : "");
         }
     }
+	std::cout << "} ";
     std::cout << "Status: ";
     switch (status) {
-    case LabelStatus::NEW_OPEN:    std::cout << "NEW_OPEN\n"; break;
-    case LabelStatus::NEW_CLOSED:  std::cout << "NEW_CLOSED\n"; break;
-    case LabelStatus::OPEN:        std::cout << "OPEN\n"; break;
-    case LabelStatus::CLOSED:      std::cout << "CLOSED\n"; break;
-    case LabelStatus::DOMINATED:   std::cout << "DOMINATED\n"; break;
+    case LabelStatus::NEW_OPEN:    std::cout << "NEW_OPEN "; break;
+    case LabelStatus::NEW_CLOSED:  std::cout << "NEW_CLOSED "; break;
+    case LabelStatus::OPEN:        std::cout << "OPEN "; break;
+    case LabelStatus::CLOSED:      std::cout << "CLOSED "; break;
+    case LabelStatus::DOMINATED:   std::cout << "DOMINATED "; break;
     }
     std::cout << "ID (vertex, id): ( " << vertex << " , " << id << " )" << std::endl;
     std::cout << "=========================\n\n";

@@ -10,7 +10,7 @@
 #include "Solution.h"
 #include "Graph.h"
 #include "Utils.h"
-#include "MIP1.h"
+#include <queue>
 
 struct CompareLabel {
     bool operator()(const Label& a, const Label& b) const {
@@ -27,16 +27,21 @@ struct CompareLabel {
         return a.id < b.id;
     }
 };
-
+struct CompareLableLB {
+    bool operator()(const Label* a, const Label* b) const {
+        return a->cost > b->cost; // Min-heap: higher priority value means lower priority
+    }
+};
 class LabelManager {
 public:
     double UB = 1000;
     std::vector<Solution> solutions;
     std::map<int, std::set<Label, CompareLabel>> Labels;
+    std::priority_queue<Label*, std::vector<Label*>, CompareLableLB> labelQueue;
 	std::set<std::tuple<int, long long, long long>> IDs;
-    int best_open_label= 0;
-    LabelManager(int num_nodes, int num_res, Graph& graph);
+    std::unordered_set<Label*> invalidLabels;
 
+    LabelManager(int num_nodes, int num_res, Graph& graph);
     void initializeLabels(int num_nodes, int num_res, Graph& graph);
     void DominanceCheckInsert(Label& label);
     bool isIDDuplicate(const int vertex, const long long fw_id, const long long bw_id) const;

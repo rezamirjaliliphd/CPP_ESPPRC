@@ -11,15 +11,44 @@
 void solveMIP(Graph& graph, bool LP_relaxation) {
     //std::cout << "Initializing Based Model" << std::endl;
     GRBEnv env = GRBEnv(true);
-    env.set(GRB_IntParam_OutputFlag, 0);
-    env.set(GRB_IntParam_LogToConsole, 0);
+    //env.set(GRB_IntParam_OutputFlag, 0);
+    //env.set(GRB_IntParam_LogToConsole, 0);
+
     env.start();
     // Starting LP relaxation of the problem
     GRBModel model = GRBModel(env);
+    model.set(GRB_IntParam_Threads, 1);
+    model.set(GRB_IntParam_Method, -1);
+    model.set(GRB_IntParam_Presolve, 0); // Disable presolve (optional)
+    model.set(GRB_IntParam_Cuts, 0);  // Disables all automatic cuts
+    model.set(GRB_IntParam_CliqueCuts, 0);
+    model.set(GRB_IntParam_CoverCuts, 0);
+    model.set(GRB_IntParam_FlowCoverCuts, 0);
+    model.set(GRB_IntParam_FlowPathCuts, 0);
+    model.set(GRB_IntParam_GUBCoverCuts, 0);
+    model.set(GRB_IntParam_ImpliedCuts, 0);
+    model.set(GRB_IntParam_MIRCuts, 0);
+    model.set(GRB_IntParam_ModKCuts, 0);
+    model.set(GRB_IntParam_NetworkCuts, 0);
+    model.set(GRB_IntParam_SubMIPCuts, 0);
+    model.set(GRB_IntParam_ZeroHalfCuts, 0);
+    model.set(GRB_IntParam_StrongCGCuts, 0);
+    model.set(GRB_IntParam_RLTCuts, 0);
+    model.set(GRB_IntParam_GomoryPasses, 0);  // Disable Gomory cuts
+    model.set(GRB_IntParam_Presolve, 0);
+    model.set(GRB_DoubleParam_NoRelHeurTime, 0);
+    model.set(GRB_IntParam_RINS, 0);
+    model.set(GRB_IntParam_Crossover, 0);
+
+
+
+
+
+
     GRBLinExpr obj = 0, inflow, outflow;
     std::unordered_map<int, std::unordered_map<int, GRBVar>> x;
     std::unordered_map<int, GRBVar> u;
-
+    
     for (int i = 0; i < graph.num_nodes; ++i) {
         for (const auto e : graph.OutList[i]) {
             x[i][e->to] = model.addVar(0, 1, e->cost, !LP_relaxation ? GRB_BINARY:GRB_CONTINUOUS);

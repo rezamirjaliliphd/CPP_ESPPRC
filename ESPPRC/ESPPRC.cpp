@@ -67,7 +67,7 @@ int main() {
     solveMIP(graph, false);
     //ip_obj = ip_model.solve();
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration_ip = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    auto duration_ip = static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
 
 
     //double lp_obj;
@@ -82,14 +82,14 @@ int main() {
     std::cout << "manager initialized" << std::endl;
     auto start_esp = std::chrono::high_resolution_clock::now();
     manager.Run(graph);
-	manager.displaySolutions();
+	
     auto end_esp = std::chrono::high_resolution_clock::now();
-    auto duration_esp = std::chrono::duration_cast<std::chrono::microseconds>(end_esp - start_esp).count();
+    auto duration_esp = static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(end_esp - start_esp).count());
     if (duration_esp > duration_ip) {
-		std::cout << " ESPPRC is " << static_cast<double>(duration_esp / duration_ip) << " times slower!" << std::endl;
+		std::cout << " ESPPRC is " << (duration_esp- duration_ip)/1000000 << " s slower ("<<(duration_esp/duration_ip) <<" times)!" << std::endl;
 	}
     else {
-        std::cout << " Gurobi is slower for " << static_cast<double>(duration_ip / duration_esp) << "times slower." << std::endl;
+        std::cout << " Gurobi is slower for " << (duration_ip - duration_esp)/1000000 << " s  slower.(" << (duration_ip / duration_esp) << " times)!" << std::endl;
     }
     /*std::cout << " ESPPRC Time: " << round(duration_esp/1000000) << std::endl;
     std::cout << " Gurobi Time: " << round(duration_ip/1000000) << std::endl;*/
@@ -99,7 +99,7 @@ int main() {
  //   else {
 	//	std::cout << " ESPPRC is slower for " << static_cast<double>((duration_esp - duration_ip))/duration_esp *100<<"%" << std::endl;
  //   }
-
+    manager.displaySolutions();
     return 0;
 }
 
