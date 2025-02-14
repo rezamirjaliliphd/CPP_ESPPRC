@@ -44,6 +44,7 @@ public:
     double LB;
     LabelStatus status;
     std::shared_ptr<GRBModel> model=nullptr;
+	std::shared_ptr<GRBModel> sep_model = nullptr;
     std::map<std::pair<int, int>, double> min_res;
 
     Label(Graph& graph);
@@ -54,7 +55,7 @@ public:
     void display() const;
     DominanceStatus DominanceCheck(const Label& rival) const;
     bool isConcatenable(const Label& bw_label, const std::vector<double>& r_max) const;
-	bool LBImprove(Graph& graph);
+	void LBImprove(Graph& graph);
 	void getUpdateMinRes(Graph& graph);
 	bool isInPath(int node) const;
 };

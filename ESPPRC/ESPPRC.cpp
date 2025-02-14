@@ -40,22 +40,14 @@ int main() {
     }
     graph.getMaxValue();
     graph.getMinWeights();
-   
+	std::cout << "Building graph based models" << std::endl;
     graph.buildBaseModel();
+	std::cout << "Separation model is built" << std::endl;  
+	graph.buildSepModel();
     std::cout << "root model objective value: " << graph.model->get(GRB_DoubleAttr_ObjVal) << std::endl;
-    /*for (int i = 0; i < n; ++i) {
-        for (auto& e : graph.OutList[i]) {
-            if (graph.x[{e->from, e->to}]->get(GRB_DoubleAttr_X) > 0) {
-                std::cout << "x[" << e->from << "," << e->to << "] = " << graph.x[{e->from, e->to}]->get(GRB_DoubleAttr_X) << std::endl;
-            }
-        }
-        if (graph.model->getVarByName("y[" + std::to_string(i) + "]").get(GRB_DoubleAttr_X) > 0) {
-			std::cout << "y[" + std::to_string(i) + "] = " << graph.model->getVarByName("y[" + std::to_string(i) + "]").get(GRB_DoubleAttr_X) << std::endl;
-        }
-    }*/
     
     
-	//std::cout << "Graph created" << std::endl;
+	
  //   // Build an instance of MIP as LP and IP
  //   MIP ip_model(graph, false);
  //   MIP lp_model(graph, true);

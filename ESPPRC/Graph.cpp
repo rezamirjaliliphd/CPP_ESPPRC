@@ -108,11 +108,11 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
     std::string name;
     // Define variables
     for (int i = 0; i < num_nodes; ++i) {
-        y[i] = model->addVar(0, 1, -i, GRB_CONTINUOUS, "y[" + std::to_string(i) + "]");
+        y[i] = model->addVar(0, 1, -i, !LP_relaxation ? GRB_INTEGER : GRB_CONTINUOUS, "y[" + std::to_string(i) + "]");
         obj += -i * y[i];
         for (const auto e : OutList[i]) {
             name = "x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]";
-            x[{e->from, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1, e->cost, !LP_relaxation ? GRB_BINARY : GRB_CONTINUOUS, name));
+            x[{e->from, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1, e->cost, !LP_relaxation ? GRB_INTEGER : GRB_CONTINUOUS, name));
             obj += *x[{e->from, e->to}] * (e->cost + i);
         }
     }
@@ -171,40 +171,76 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
         }
     }
     
-    /*for (auto [key, x_] : x) {
+    for (auto [key, x_] : x) {
 		if (key.first == 0 || key.second == 0) continue;
         if (x.find({ key.second, key.first }) != x.end()) {
             model->addConstr(*x_ + *x[{key.second, key.first}]<= 1);
         }
-    }*/
+    }
 
     model->setObjective(obj, GRB_MINIMIZE); // Set objective function
 	model->update();
 	model->optimize();
     
-	/*int cut_num = 0;
-    while (cut_num < 10) {
-        double rc = 0, rhs = 1 + floor(ROUND(model->get(GRB_DoubleAttr_ObjVal), 5)) - ROUND(model->get(GRB_DoubleAttr_ObjVal), 5);
-        GRBLinExpr lhs=0;
-        int numVars = model->get(GRB_IntAttr_NumVars);
-        GRBVar* vars = model->getVars();
-        for (int i = 0; i < numVars; ++i) {
-            if (vars[i].get(GRB_DoubleAttr_RC) > 0) {
-                rc = ROUND(vars[i].get(GRB_DoubleAttr_RC), 5) - floor(ROUND(vars[i].get(GRB_DoubleAttr_RC), 5));
-                lhs += vars[i] * (rc);
-            }
-        }
-        s[cnt] = model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "s[" + std::to_string(cnt) + "]");
-        model->addConstr(lhs - s[cnt] == 1);
-        cnt++;
-        model->update();
-        model->optimize();
-        std::cout << "root model built with objective value: " << model->get(GRB_DoubleAttr_ObjVal) << std::endl;
-		cut_num++;
-        model->
-    }*/
+    
 }
+void Graph::buildSepModel() {
+	std::cout << "Building separation model" << std::endl;
+    GRBEnv enV = GRBEnv();
+    enV.set(GRB_IntParam_OutputFlag, 0);
+    enV.set(GRB_IntParam_LogToConsole, 0);
+    sep_model = std::make_shared<GRBModel>(enV);
+    GRBLinExpr obj = 0, lhs = 0, lhs_ = 0;
 
+    std::map<std::pair<int, int>, GRBVar> w;
+    std::map<int, GRBVar> z, z_;
+
+
+    std::map<std::pair<int, int>, double > x_val;
+    std::map<int, double> y;
+    //std::cout << "starting LB improvement" << std::endl;
+    std::string name;
+
+    for (int i = 1; i < num_nodes; ++i) {
+        name = "[" + std::to_string(i) + "]";
+        y[i] = model->getVarByName("y" + name).get(GRB_DoubleAttr_X);
+
+        for (const auto e : OutList[i]) {
+            if (e->from == 0 || e->to == 0) continue;
+            name = "[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]";
+            x_val[{e->from, e->to}] = model->getVarByName("x" + name).get(GRB_DoubleAttr_X);
+            w[{e->from, e->to}] = sep_model->addVar(0, 1, x_val[{e->from, e->to}], GRB_BINARY, "w" + name);
+
+            obj += x_val[{e->from, e->to}] * w[{e->from, e->to}];
+            if (z.find(e->from) == z.end()) {
+                z[e->from] = sep_model->addVar(0, 1, 0, GRB_BINARY, "z[" + std::to_string(e->from) + "]");
+                z_[e->from] = sep_model->addVar(0, 1, 0, GRB_BINARY, "z_[" + std::to_string(e->from) + "]");
+            }
+            if (z.find(e->to) == z.end()) {
+                z[e->to] = sep_model->addVar(0, 1, 0, GRB_BINARY, "z[" + std::to_string(e->to) + "]");
+                z_[e->to] = sep_model->addVar(0, 1, 0, GRB_BINARY, "z_[" + std::to_string(e->to) + "]");
+            }
+            sep_model->addConstr(2 * w[{e->from, e->to}] <= z[e->from] + z[e->to]);
+            sep_model->addConstr(z[e->from] + z[e->to] <= w[{e->from, e->to}] + 1);
+
+        }
+        obj -= z[i] * y[i];
+        lhs += z_[i];
+        lhs_ += z[i];
+        sep_model->addConstr(z_[i] <= z[i]);
+        obj += y[i] * z_[i];
+    }
+    sep_model->addConstr(lhs_ >= 3);
+    sep_model->addConstr(lhs == 1);
+
+    //std::cout << "At least one resource must be violated" << std::endl;
+
+    sep_model->setObjective(obj, GRB_MAXIMIZE);
+	sep_model->update();
+	sep_model->optimize();
+    //sep_model->optimize();
+
+}
 std::pair<std::map<std::pair<int, int>, double>, double> Graph::getRCLabel(const std::vector<int>& p) {
     std::map<std::pair<int, int>, double> rc;
 	GRBConstr constr;

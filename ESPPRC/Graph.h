@@ -26,6 +26,7 @@ public:
     std::vector<double> max_value;
     std::vector<double> res_max;
 	std::shared_ptr<GRBModel> model;
+	std::shared_ptr<GRBModel> sep_model;
 	std::map<std::pair<int, int>, std::shared_ptr<GRBVar>> x;
 	std::map<int, std::shared_ptr<GRBVar>> u;
 
@@ -42,7 +43,7 @@ public:
     void getMaxValue();
     void buildBaseModel(bool LP_relaxation = true, bool subtour_elm=true);
     std::pair<std::map<std::pair<int, int>, double>, double> getRCLabel(const std::vector<int>& p);
-
+	void buildSepModel();
 };
 
 
