@@ -92,27 +92,27 @@ void Label::getUpdateMinRes(Graph& graph) {
     }
 }
 void Label::UpdateReachable(Graph& graph, const double UB) {
-    std::string var_name;
-    bool ind = true;
-    for (int i = 1; i < graph.num_nodes; ++i) {
-        //ind = ;
-        //ind = ind && (model->getVar(graph.y_index[i]).get(GRB_DoubleAttr_RC) > UB - LB);
-        if (reachable[i] && model->getVar(graph.u_index[i]).get(GRB_DoubleAttr_RC) > UB - LB) {
-            reachable[i] = false;
-            model->getVar(graph.u_index[i]).set(GRB_DoubleAttr_UB, 0);
-            model->update();
-            model->optimize();
-            LB = model->get(GRB_DoubleAttr_ObjVal);
-        }
-    }
-    
-    for (const auto e : graph.OutList[vertex]) {
-        int neighbor =  e->to;
-        if (reachable[neighbor] && neighbor != 0) {
-            
-            if (model->getVar(graph.x_index[{e->from, e->to}]).get(GRB_DoubleAttr_RC) > UB - LB) reachable[neighbor] = false ;
-        }
-    }
+    //std::string var_name;
+    //bool ind = true;
+    //for (int i = 1; i < graph.num_nodes; ++i) {
+    //    //ind = ;
+    //    //ind = ind && (model->getVar(graph.y_index[i]).get(GRB_DoubleAttr_RC) > UB - LB);
+    //    if (reachable[i] && model->getVar(graph.u_index[i]).get(GRB_DoubleAttr_RC) > UB - LB) {
+    //        reachable[i] = false;
+    //        model->getVar(graph.u_index[i]).set(GRB_DoubleAttr_UB, 0);
+    //        model->update();
+    //        model->optimize();
+    //        LB = model->get(GRB_DoubleAttr_ObjVal);
+    //    }
+    //}
+    //
+    //for (const auto e : graph.OutList[vertex]) {
+    //    int neighbor =  e->to;
+    //    if (reachable[neighbor] && neighbor != 0) {
+    //        
+    //        if (model->getVar(graph.x_index[{e->from, e->to}]).get(GRB_DoubleAttr_RC) > UB - LB) reachable[neighbor] = false ;
+    //    }
+    //}
     //getUpdateMinRes(graph);
 
     for (const auto e : graph.OutList[vertex]) {
