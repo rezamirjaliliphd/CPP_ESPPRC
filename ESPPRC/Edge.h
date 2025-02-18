@@ -6,11 +6,9 @@
 class Edge {
 public:
     int from;
-    int to;
+	int to;
     double cost;
-	double reduced_cost = 0;
     std::vector<double> resources;
-
     Edge(int f, int t, double c, const std::vector<double>& r);
 };
 

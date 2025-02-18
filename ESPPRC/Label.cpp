@@ -9,39 +9,38 @@ Label::Label(Graph& graph)
     reachable(graph.num_nodes, true), LB(0), id(0), rc(graph.num_edges, 0) { // Farzane: initialized "edges()"
     status = LabelStatus::OPEN;
     reachable[0] = false;
-	id = 0;
-	//std::cout << "Copying root model" << std::endl;
-	model = std::make_shared<GRBModel>(*graph.model);
-	//std::cout << "Copying separation model" << std::endl;
-	//sep_model = std::make_shared<GRBModel>(*graph.sep_model);
-	//std::cout << "Updating root model" << std::endl;
-	model->update();
-	model->optimize();
-	/*std::cout << " updating separation model" << std::endl;
-	sep_model->update();
+    id = 0;
+    //std::cout << "Copying root model" << std::endl;
+    model = std::make_shared<GRBModel>(*graph.model);
+    //std::cout << "Copying separation model" << std::endl;
+    //sep_model = std::make_shared<GRBModel>(*graph.sep_model);
+    //std::cout << "Updating root model" << std::endl;
+    model->update();
+    model->optimize();
+    /*std::cout << " updating separation model" << std::endl;
+    sep_model->update();
     std::cout << " updated separation model" << std::endl;
-	sep_model->optimize();
+    sep_model->optimize();
     std::cout << " optimized separation model" << std::endl;*/
     LB = graph.model->get(GRB_DoubleAttr_ObjVal);
-	std::cout << "LB: " << LB << std::endl;
-	//LBImprove(graph);
-    UpdateReachable(graph, 0);   
+    std::cout << "LB: " << LB << std::endl;
+    //LBImprove(graph);
+    UpdateReachable(graph, 0);
 }
 
 // Farzane: passed pointer of MIP to the label
 Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double UB)
     : path(parent.path), cost(parent.cost),
-    resources(parent.resources), reachable(parent.reachable){
-    vertex =  edge->to;
+    resources(parent.resources), reachable(parent.reachable) {
+    vertex = edge->to;
     cost = parent.cost + edge->cost;
     model = std::make_shared<GRBModel>(*parent.model);
-    std::string var_name = "x[" + std::to_string(edge->from) + "," + std::to_string(edge->to) + "]";
-    model->getVarByName(var_name).set(GRB_DoubleAttr_LB,1);
+    model->getVar(graph.x_index[{edge->to,edge->from}]).set(GRB_DoubleAttr_LB, 1);
     model->update();
     model->optimize();
-	/*sep_model = std::make_shared<GRBModel>(*parent.sep_model);
-	sep_model->update();
-	sep_model->optimize();*/
+    /*sep_model = std::make_shared<GRBModel>(*parent.sep_model);
+    sep_model->update();
+    sep_model->optimize();*/
     LB = model->get(GRB_DoubleAttr_ObjVal);
     path.push_back(vertex);
 
@@ -52,13 +51,13 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
     }
     //LBImprove(graph);
     UpdateReachable(graph, UB);
-	
+
     /*LB = cost;
-	for (int i = 0; i < graph.num_nodes; i++) {
-		if (reachable[i]&&graph.max_value[i]<0) {
-			LB += graph.max_value[i];
-		}
-	}*/
+    for (int i = 0; i < graph.num_nodes; i++) {
+        if (reachable[i]&&graph.max_value[i]<0) {
+            LB += graph.max_value[i];
+        }
+    }*/
 
 
     if (reachHalfPoint(graph.res_max, graph.num_nodes)) {
@@ -78,43 +77,43 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
 
 void Label::getUpdateMinRes(Graph& graph) {
     for (int i = 0; i < graph.num_nodes; i++) {
-        if ((i == 0)||(i==vertex)|| reachable[i]) {
+        if ((i == 0) || (i == vertex) || reachable[i]) {
             for (const auto e : graph.OutList[i]) {
                 if (reachable[e->to]) {
-					for (int k = 0; k < graph.num_res; k++) {
-						if (min_res.find({ i,k }) == min_res.end())  min_res[{i, k}] = e->resources[k];
-						else min_res[{i, k}] = std::min(min_res[{i, k}], e->resources[k]);
-					}
-                  
+                    for (int k = 0; k < graph.num_res; k++) {
+                        if (min_res.find({ i,k }) == min_res.end())  min_res[{i, k}] = e->resources[k];
+                        else min_res[{i, k}] = std::min(min_res[{i, k}], e->resources[k]);
+                    }
+
                 }
             }
-        
+
         }
     }
 }
 void Label::UpdateReachable(Graph& graph, const double UB) {
     std::string var_name;
-    /*bool ind = true;
+    bool ind = true;
     for (int i = 1; i < graph.num_nodes; ++i) {
-        ind = (reachable[i] && model->getVarByName("u[" + std::to_string(i) + "]").get(GRB_DoubleAttr_RC) > UB - LB);
-		ind = ind && (model->getVarByName("y[" + std::to_string(i) + "]").get(GRB_DoubleAttr_RC) > UB - LB);
-        if (ind) { 
+        //ind = ;
+        //ind = ind && (model->getVar(graph.y_index[i]).get(GRB_DoubleAttr_RC) > UB - LB);
+        if (reachable[i] && model->getVar(graph.u_index[i]).get(GRB_DoubleAttr_RC) > UB - LB) {
             reachable[i] = false;
-            model->getVarByName("y[" + std::to_string(i) + "]").set(GRB_DoubleAttr_UB, 0);
+            model->getVar(graph.u_index[i]).set(GRB_DoubleAttr_UB, 0);
             model->update();
             model->optimize();
-			LB = model->get(GRB_DoubleAttr_ObjVal);
+            LB = model->get(GRB_DoubleAttr_ObjVal);
         }
     }
     
     for (const auto e : graph.OutList[vertex]) {
         int neighbor =  e->to;
         if (reachable[neighbor] && neighbor != 0) {
-            var_name = "x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]";
-            if (model->getVarByName(var_name).get(GRB_DoubleAttr_RC) > UB - LB)  reachable[neighbor] = false;
+            
+            if (model->getVar(graph.x_index[{e->from, e->to}]).get(GRB_DoubleAttr_RC) > UB - LB) reachable[neighbor] = false ;
         }
-    }*/
-	//getUpdateMinRes(graph);
+    }
+    //getUpdateMinRes(graph);
 
     for (const auto e : graph.OutList[vertex]) {
         int neighbor = e->to;
@@ -126,9 +125,9 @@ void Label::UpdateReachable(Graph& graph, const double UB) {
                 }
             }
         }
-    }   
+    }
 }
-    
+
 
 bool Label::reachHalfPoint(const std::vector<double>& res_max, int num_nodes) {
     if (path.size() >= static_cast<double>(num_nodes) / 2) {
@@ -143,10 +142,10 @@ bool Label::reachHalfPoint(const std::vector<double>& res_max, int num_nodes) {
 }
 
 bool Label::isInPath(int node) const {
-	for (const int i : path) {
-		if (i == node) return true;
-	}
-	return false;
+    for (const int i : path) {
+        if (i == node) return true;
+    }
+    return false;
 }
 
 void Label::display() const {
@@ -165,7 +164,7 @@ void Label::display() const {
             std::cout << i << (i + 1 < reachable.size() ? ", " : "");
         }
     }
-	std::cout << "} ";
+    std::cout << "} ";
     std::cout << "Status: ";
     switch (status) {
     case LabelStatus::NEW_OPEN:    std::cout << "NEW_OPEN "; break;
@@ -205,11 +204,11 @@ bool Label::isConcatenable(const Label& label, const std::vector<double>& r_max)
         }
     }
 
-	for (const int& i : path) {
-		if (i == vertex || i == 0) continue;
-		if (label.isInPath(i)) return false;
-	}
-	return true;
+    for (const int& i : path) {
+        if (i == vertex || i == 0) continue;
+        if (label.isInPath(i)) return false;
+    }
+    return true;
 }
 
 void Label::LBImprove(Graph& graph) {
@@ -221,7 +220,7 @@ void Label::LBImprove(Graph& graph) {
 
         for (int i = 1; i < graph.num_nodes; ++i) {
             name = "[" + std::to_string(i) + "]";
-			//std::cout << "changing coefficient of z[" << i << "]" << std::endl;
+            //std::cout << "changing coefficient of z[" << i << "]" << std::endl;
             y_val = model->getVarByName("y" + name).get(GRB_DoubleAttr_X);
             sep_model->getVarByName("z" + name).set(GRB_DoubleAttr_Obj, -y_val);
             //std::cout << "changing coefficient of z_[" << i << "]" << std::endl;
@@ -259,7 +258,7 @@ void Label::LBImprove(Graph& graph) {
                 LB = model->get(GRB_DoubleAttr_ObjVal);
                 std::cout << " New LB: " << LB << std::endl;
 
-			}
+            }
             else {
                 break;
             }
@@ -271,7 +270,7 @@ void Label::LBImprove(Graph& graph) {
     }
 }
 
-    
+
 
 
 //double Label::RighiniLB(Graph& graph) {

@@ -34,7 +34,7 @@
 struct CompareLabel {
     bool operator()(const Label& a, const Label& b) const {
         if (a.status != b.status) {
-			return a.status > b.status;
+            return a.status > b.status;
         }
         return a.LB > b.LB; // Min-heap: higher priority value means lower priority
     }
@@ -50,11 +50,11 @@ public:
     std::vector<Solution> solutions;
     //std::map<int, std::set<Label, CompareLabel>> Labels;
     std::vector<Label> labelHeap;
-	std::unordered_set<std::pair<long long, long long>,pair_hash> IDs;
-	long long ID = 0;
+    std::unordered_set<std::pair<long long, long long>, pair_hash> IDs;
+    long long ID = 0;
 
-    LabelManager(int num_nodes, int num_res, Graph& graph);
-    
+    LabelManager(Graph& graph);
+
     void DominanceCheckInsert(Label& label, Graph& graph);
     bool isIDDuplicate(const long long fw_id, const long long bw_id) const;
     void displayLabels() const;

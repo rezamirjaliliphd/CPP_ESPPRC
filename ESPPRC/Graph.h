@@ -27,8 +27,9 @@ public:
     std::vector<double> res_max;
 	std::shared_ptr<GRBModel> model;
 	std::shared_ptr<GRBModel> sep_model;
-	std::map<std::pair<int, int>, std::shared_ptr<GRBVar>> x;
-	std::map<int, std::shared_ptr<GRBVar>> u;
+	std::map<std::pair<int, int>, int> x_index;
+	std::map<int, int> u_index;
+	std::map<int, int> y_index;
 
 
     Graph(int n, int m, std::vector<double> r_max);

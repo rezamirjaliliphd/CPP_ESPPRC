@@ -101,25 +101,28 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
     env.set(GRB_IntParam_LogToConsole, 0);
     env.start();
     model = std::make_shared<GRBModel>(env);
-
+	std::map<std::pair<int, int>, GRBVar> x;
+	std::map<int, GRBVar> y,u;
+	
     GRBLinExpr obj = 0, inflow, outflow;
-    int cnt = 0;
-    std::map<int, GRBVar> y;
     std::string name;
     // Define variables
     for (int i = 0; i < num_nodes; ++i) {
         y[i] = model->addVar(0, 1, -i, !LP_relaxation ? GRB_INTEGER : GRB_CONTINUOUS, "y[" + std::to_string(i) + "]");
+		y_index[i] = y[i].index();
         obj += -i * y[i];
         for (const auto e : OutList[i]) {
             name = "x[" + std::to_string(e->from) + "," + std::to_string(e->to) + "]";
-            x[{e->from, e->to}] = std::make_shared<GRBVar>(model->addVar(0, 1, e->cost, !LP_relaxation ? GRB_INTEGER : GRB_CONTINUOUS, name));
-            obj += *x[{e->from, e->to}] * (e->cost + i);
+            x[{e->from, e->to}] = model->addVar(0, 1, e->cost, !LP_relaxation ? GRB_INTEGER : GRB_CONTINUOUS, name);
+			x_index[{e->from, e->to}] = x[{e->from, e->to}].index();
+            obj += x[{e->from, e->to}] * (e->cost + i);
         }
     }
 
     for (int i = 0; i < num_nodes; i++) {
         name = "u[" + std::to_string(i) + "]";
-        u[i] = std::make_shared<GRBVar>(model->addVar(0.0, num_nodes, 0.0, !LP_relaxation ? GRB_INTEGER : GRB_CONTINUOUS, name));
+        u[i] = model->addVar(0.0, num_nodes, 0.0, !LP_relaxation ? GRB_INTEGER : GRB_CONTINUOUS, name);
+		u_index[i] = u[i].index();
     }
 
     // Flow conservation constraints
@@ -127,10 +130,10 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
         outflow = 0;
         inflow = 0;
         for (const auto e : OutList[i]) {
-            outflow += *x[{e->from, e->to}];
+            outflow += x[{e->from, e->to}];
         }
         for (const auto e : InList[i]) {
-            inflow += *x[{e->from, e->to}];
+            inflow += x[{e->from, e->to}];
         }
         if (i == 0) {
             model->addConstr(inflow == 1, "source");
@@ -140,7 +143,6 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
         else {
 
             model->addConstr(inflow == y[i]);
-            cnt++;
             model->addConstr(inflow == outflow, "flow_" + std::to_string(i));
         }
     }
@@ -150,12 +152,11 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
         GRBLinExpr constraint = 0;
         for (int i = 0; i < num_nodes; ++i) {
             for (const auto e : OutList[i]) {
-                constraint += *x[{e->from, e->to}] * e->resources[k];
+                constraint += x[{e->from, e->to}] * e->resources[k];
             }
         }
 
         model->addConstr(constraint <= res_max[k], "resource_" + std::to_string(k));
-        cnt++;
     }
 
     // // Subtour elimination constraints
@@ -165,7 +166,7 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
                 name = "subtour_" + std::to_string(i) + "_" + std::to_string(e->to);
                 if (e->from == 0 || e->to == 0) continue;
 
-                model->addConstr(*u[e->from] + 1 <= *u[e->to] + num_nodes * (1 - *x[{e->to, e->from}]), name);
+                model->addConstr(u[e->from] + 1 <= u[e->to] + num_nodes * (1 - x[{e->to, e->from}]), name);
 
             }
         }
@@ -174,7 +175,7 @@ void Graph::buildBaseModel(bool LP_relaxation, bool subtour_elm) {
     for (auto [key, x_] : x) {
 		if (key.first == 0 || key.second == 0) continue;
         if (x.find({ key.second, key.first }) != x.end()) {
-            model->addConstr(*x_ + *x[{key.second, key.first}]<= 1);
+            model->addConstr(x_ + x[{key.second, key.first}]<= 1);
         }
     }
 
@@ -241,35 +242,3 @@ void Graph::buildSepModel() {
     //sep_model->optimize();
 
 }
-std::pair<std::map<std::pair<int, int>, double>, double> Graph::getRCLabel(const std::vector<int>& p) {
-    std::map<std::pair<int, int>, double> rc;
-	GRBConstr constr;
-	GRBLinExpr lhs = 0;
-    double objVal = -1.0;  // Initialize to an invalid value
-    if (p.size() == 1) {
-
-        for (int i = 0; i < num_nodes; i++) {
-            for (const auto& e : OutList[i]) rc[{e->from, e->to}] = x[{e->from, e->to}]->get(GRB_DoubleAttr_RC);
-		}
-		objVal = model->get(GRB_DoubleAttr_ObjVal);
-		return std::make_pair(rc, objVal);
-    }
-    for (size_t i = 0; i < p.size() - 1; ++i) {
-		//std::cout << "Adding constraint for edge " << p[i] << " -> " << p[i + 1] << std::endl;
-        x[{ p[i], p[i + 1] }]->set(GRB_DoubleAttr_LB, 1);  // Set the lower bound to 1
-    }
-    model->update();  // Ensure changes are reflected in the model
-    model->optimize();  // Perform the optimization
-    objVal = model->get(GRB_DoubleAttr_ObjVal);
-    for (int i = 0; i < num_nodes; i++) {
-        for (const auto& e : OutList[i]) rc[{e->from, e->to}] = x[{e->from, e->to}]->get(GRB_DoubleAttr_RC);
-    }
-	//model->remove(constr);
-    for (size_t i = 0; i < p.size() - 1; ++i) {
-        x[{ p[i], p[i + 1] }]->set(GRB_DoubleAttr_LB, 0);  // Set the lower bound to 0
-    }
-    model->update();  // Ensure changes are reflected in the model
-    model->optimize();  // Perform the optimization
-    return std::make_pair(rc, objVal);
-}
-

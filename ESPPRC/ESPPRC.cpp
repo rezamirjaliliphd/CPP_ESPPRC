@@ -70,7 +70,7 @@ int main() {
 
  //   // start of algorithm
     std::cout << "Running ESPPRC" << std::endl;
-    LabelManager manager(n, m, graph);
+    LabelManager manager(graph);
     std::cout << "manager initialized" << std::endl;
     auto start_esp = std::chrono::high_resolution_clock::now();
     manager.Run(graph);
