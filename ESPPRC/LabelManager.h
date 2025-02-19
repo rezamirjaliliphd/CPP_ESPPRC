@@ -49,7 +49,7 @@ public:
     double UB = 0;
     std::vector<Solution> solutions;
     //std::map<int, std::set<Label, CompareLabel>> Labels;
-    std::vector<Label> labelHeap;
+    std::vector<Label> F_Heap,B_Heap;
     std::unordered_set<std::pair<long long, long long>, pair_hash> IDs;
     long long ID = 0;
 

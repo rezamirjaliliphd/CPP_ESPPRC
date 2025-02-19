@@ -3,7 +3,7 @@
 #include <cmath>
 #include <algorithm>
 
-Label::Label(Graph& graph)
+Label::Label(Graph& graph, bool dir)
     : vertex(0), path({ 0 }), cost(0),
     resources(graph.num_res, 0),
     reachable(graph.num_nodes, true), LB(0), id(0), rc(graph.num_edges, 0) { // Farzane: initialized "edges()"
@@ -12,18 +12,11 @@ Label::Label(Graph& graph)
     id = 0;
     //std::cout << "Copying root model" << std::endl;
     model = std::make_shared<GRBModel>(*graph.model);
-    //std::cout << "Copying separation model" << std::endl;
-    //sep_model = std::make_shared<GRBModel>(*graph.sep_model);
-    //std::cout << "Updating root model" << std::endl;
     model->update();
     model->optimize();
-    /*std::cout << " updating separation model" << std::endl;
-    sep_model->update();
-    std::cout << " updated separation model" << std::endl;
-    sep_model->optimize();
-    std::cout << " optimized separation model" << std::endl;*/
     LB = graph.model->get(GRB_DoubleAttr_ObjVal);
     std::cout << "LB: " << LB << std::endl;
+    direction = dir;
     //LBImprove(graph);
     UpdateReachable(graph, 0);
 }
@@ -32,7 +25,7 @@ Label::Label(Graph& graph)
 Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double UB)
     : path(parent.path), cost(parent.cost),
     resources(parent.resources), reachable(parent.reachable) {
-    vertex = edge->to;
+   
     cost = parent.cost + edge->cost;
     model = std::make_shared<GRBModel>(*parent.model);
     model->getVar(graph.x_index[{edge->to,edge->from}]).set(GRB_DoubleAttr_LB, 1);
@@ -42,7 +35,15 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
     sep_model->update();
     sep_model->optimize();*/
     LB = model->get(GRB_DoubleAttr_ObjVal);
-    path.push_back(vertex);
+	direction = parent.direction;
+    vertex = direction? edge->to:edge->from;
+	if (direction) {
+		path.push_back(vertex);
+	}
+	else {
+		path.insert(path.begin(), vertex);
+	}
+    
 
     reachable[vertex] = false;
     reachable[0] = false;
