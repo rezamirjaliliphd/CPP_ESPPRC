@@ -8,6 +8,7 @@
 #include <memory>
 #include <map>
 #include <cmath>
+#include <algorithm>
 
 #define ROUND(value, places) (std::round((value) * std::pow(10.0, (places))) / std::pow(10.0, (places)))
 

@@ -11,8 +11,6 @@
 #include "Graph.h"
 #include "Utils.h"
 #include <queue>
-#include <omp.h>
-#include <execution> 
 #include <algorithm>
 #include <unordered_set>
 
@@ -33,10 +31,11 @@
 //};
 struct CompareLabel {
     bool operator()(const Label& a, const Label& b) const {
-        if (a.status != b.status) {
-            return a.status > b.status;
-        }
-        return a.LB > b.LB; // Min-heap: higher priority value means lower priority
+        if (a.open != b.open) return a.open < b.open;
+        if (a.vertex != b.vertex) return a.vertex < b.vertex; // Min-heap based on vertex
+        if (a.cost != b.cost) return a.cost > b.cost; // Min-heap based on cost
+        if (a.LB != b.LB) return a.LB > b.LB; // Min-heap based on LB
+
     }
 };
 
@@ -44,11 +43,11 @@ class LabelManager {
 public:
     double UB = 1e9;
     std::vector<Solution> solutions;
-    std::vector<Label> F_Heap,B_Heap;
+    std::vector<Label> F_Heap,B_Heap, F_dominated, B_dominated;
     long long ID = 0;
 
     LabelManager(Graph& graph);
-
+    void HuristicUB(Graph& graph);
     void DominanceCheckInsert(Label& label, Graph& graph);
     void displayLabels(Graph& graph) const;
     void concatenateLabels(const Graph& graph);
@@ -56,6 +55,7 @@ public:
     void Propagate(Graph& graph);
     bool Terminate();
     void Run(Graph& graph);
+    std::vector<std::pair<std::vector<int>,double>> getSolutions() const;
 };
 
 #endif // LABELMANAGER_H

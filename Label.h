@@ -7,7 +7,7 @@
 #include "Edge.h"
 #include <map>
 #include <memory>
-#include <bits/stdc++.h>
+#include <cstdint>
 
 
 class Graph;
@@ -35,12 +35,13 @@ public:
     int vertex;
     std::vector<int> path;
     double cost;
+    bool open = true;
     std::vector<double> resources;
     uint64_t visited;
     std::unordered_set<long long> checked_with;
     bool direction;
 
-    double LB;
+    double LB = -1000;
     LabelStatus status;
 
     Label(Graph& graph,bool dir);

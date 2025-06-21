@@ -1,3 +1,0 @@
-/home/skipper/CLionProjects/CPP_ESPPRC/build/CMakeFiles/CPP_ESPPRC.dir
-/home/skipper/CLionProjects/CPP_ESPPRC/build/CMakeFiles/edit_cache.dir
-/home/skipper/CLionProjects/CPP_ESPPRC/build/CMakeFiles/rebuild_cache.dir

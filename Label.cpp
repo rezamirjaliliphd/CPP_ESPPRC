@@ -26,41 +26,34 @@ Label::Label(Graph& graph, bool dir)
     }
 }
 
-// Farzane: passed pointer of MIP to the label
+
 Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double UB)
     : path(parent.path), direction(parent.direction), cost(parent.cost),
     resources(parent.resources), visited(0),checked_with(parent.checked_with) {
     vertex = direction? edge->head:edge->tail;
     cost = parent.cost + edge->cost;
-    visited = parent.visited|(1ULL << vertex);
-
+    visited = 0;
     if (direction) {
         path.push_back(vertex);
     }
     else {
         path.insert(path.begin(), vertex);
     }
+    visited |= parent.visited | (1ULL << vertex);
 
-    for (size_t i = 0; i < resources.size(); ++i) {
-        resources[i] += edge->resources[i];
-    }
-    //LBImprove(graph);
+    for (size_t i = 0; i < resources.size(); ++i) resources[i] = parent.resources[i]+edge->resources[i];
     UpdateReachable(graph);
     UpdateLB(graph);
     
 
     if (reachHalfPoint(graph.res_max, graph.num_nodes)) {
-        status = LabelStatus::NEW_CLOSED;
-    }
+        status = LabelStatus::NEW_CLOSED;open = false;}
     else {
         status = LabelStatus::NEW_OPEN;
     }
 
-    if (LB > UB) {
-        status = LabelStatus::DOMINATED;
+    if (LB > UB) status = LabelStatus::DOMINATED;
         //std::cout << "Pruned" << std::endl;
-    }
-
 }
 
 
@@ -80,6 +73,7 @@ void Label::UpdateReachable(Graph& graph) {
 
 
 bool Label::reachHalfPoint(const std::vector<double>& res_max, int num_nodes) {
+    if (static_cast<double>(path.size())>= static_cast<double>(num_nodes+2) / 2+0.5) return true;
     for (size_t i = 0; i < resources.size(); ++i) {
         if (resources[i] >= res_max[i] / 2) {
             return true;
@@ -93,7 +87,7 @@ bool Label::reachHalfPoint(const std::vector<double>& res_max, int num_nodes) {
 void Label::UpdateLB(Graph& graph) {
     LB = cost;
     double lb = 0;
-    int neighbor = 0;
+    int neighbor = -1;
     for (int i = 0; i < graph.num_nodes; i++) {
         if (!(visited & (1ULL << i))||(i == vertex)) {
             lb = 0;
@@ -105,6 +99,7 @@ void Label::UpdateLB(Graph& graph) {
 
         }
     }
+    // LB = -1000000;
 }
 
 
@@ -135,6 +130,7 @@ void Label::display(Graph& graph) const {
     case LabelStatus::CLOSED:      std::cout << "CLOSED "; break;
     case LabelStatus::DOMINATED:   std::cout << "DOMINATED "; break;
     }
+    std::cout << "Open: " << (open ? "true" : "false") << std::endl;
     std::cout << "ID (vertex, id): ( " << vertex << " , " << id << " )" << std::endl;
     std::cout << "=========================\n\n";
 }

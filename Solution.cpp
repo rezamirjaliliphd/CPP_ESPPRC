@@ -1,7 +1,7 @@
 #include "Solution.h"
 
-Solution::Solution(const std::vector<int>& p, double c, std::pair<long long, long long> id)
-    : path(p), cost(c), ID(id) {
+Solution::Solution(const std::vector<int>& p, double c)
+    : path(p), cost(c){
 }
 
 void Solution::display() const {
