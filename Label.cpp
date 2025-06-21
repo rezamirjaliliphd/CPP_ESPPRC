@@ -28,18 +28,14 @@ Label::Label(Graph& graph, bool dir)
 
 
 Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double UB)
-    : path(parent.path), direction(parent.direction), cost(parent.cost),
-    resources(parent.resources), visited(0),checked_with(parent.checked_with) {
+    : path({0}), direction(parent.direction), cost(0),
+    resources(graph.num_res, 0), visited(0),checked_with(parent.checked_with) {
     vertex = direction? edge->head:edge->tail;
     cost = parent.cost + edge->cost;
-    visited = 0;
-    if (direction) {
-        path.push_back(vertex);
-    }
-    else {
-        path.insert(path.begin(), vertex);
-    }
-    visited |= parent.visited | (1ULL << vertex);
+    path = parent.path;
+    if (direction) {path.push_back(vertex);}else{path.insert(path.begin(), vertex);}
+    
+    visited = (parent.visited | (1ULL << vertex));
 
     for (size_t i = 0; i < resources.size(); ++i) resources[i] = parent.resources[i]+edge->resources[i];
     UpdateReachable(graph);
@@ -58,22 +54,22 @@ Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double U
 
 
 void Label::UpdateReachable(Graph& graph) {
-
+    int next_vertex= -1;
     for (const auto& e : graph.getNeighbors(vertex, direction)) {
-        int neighbor = direction? e->head:e->tail;
-        if (visited & (1ULL << neighbor)) continue;
-            for (int k = 0; k < graph.num_res; k++) {
-                if (resources[k] + e->resources[k] > graph.res_max[k]) {
-                    visited |= (1ULL << neighbor);
-                    break;
-                }
+        next_vertex = direction? e->head:e->tail;
+        if (visited & (1ULL << next_vertex)) continue;
+        for (int k = 0; k < graph.num_res; k++) {
+            if (resources[k] + e->resources[k] > graph.res_max[k]) {
+                visited |= (1ULL << next_vertex);
+                break;
+            }
         }
     }
 }
 
 
 bool Label::reachHalfPoint(const std::vector<double>& res_max, int num_nodes) {
-    if (static_cast<double>(path.size())>= static_cast<double>(num_nodes+2) / 2+0.5) return true;
+    // if (static_cast<double>(path.size())>= static_cast<double>(num_nodes+2) / 2+0.5) return true;
     for (size_t i = 0; i < resources.size(); ++i) {
         if (resources[i] >= res_max[i] / 2) {
             return true;
@@ -136,21 +132,30 @@ void Label::display(Graph& graph) const {
 }
 
 DominanceStatus Label::DominanceCheck(const Label& rival) const {
-    if (vertex != rival.vertex|| direction != rival.direction) return DominanceStatus::INCOMPARABLE;
-    bool new_label_dominates = true, new_label_lose = true;
-    for (size_t i = 0; i < resources.size(); ++i) {
-        if (resources[i] > rival.resources[i]) new_label_dominates = false;
-        if (resources[i] < rival.resources[i]) new_label_lose = false;
-        if (!new_label_dominates && !new_label_lose) return DominanceStatus::INCOMPARABLE;
-    }
-
-    if ((visited&rival.visited)!=visited) new_label_dominates = false;
-    if ((visited&rival.visited)!=rival.visited) new_label_lose = false;
-
-    if (!new_label_dominates && !new_label_lose) return DominanceStatus::INCOMPARABLE;
+    if (vertex != rival.vertex || direction != rival.direction) 
+        return DominanceStatus::INCOMPARABLE;
     
-    if (new_label_dominates && cost <= rival.cost) return DominanceStatus::DOMINATES;
-    if (new_label_lose && cost >= rival.cost) return DominanceStatus::DOMINATED;
+    // Check resource dominance
+    bool this_dominates_resources = true;
+    bool rival_dominates_resources = true;
+    
+    for (size_t i = 0; i < resources.size(); ++i) {
+        if (resources[i] > rival.resources[i]) this_dominates_resources = false;
+        if (rival.resources[i] > resources[i]) rival_dominates_resources = false;
+    }
+    
+    // Check visited set dominance (subset relationship)
+    bool this_dominates_visited = (visited & rival.visited) == visited; // this ⊆ rival
+    bool rival_dominates_visited = (visited & rival.visited) == rival.visited; // rival ⊆ this
+    
+    // Overall dominance check
+    if (this_dominates_resources && this_dominates_visited && cost <= rival.cost) {
+        return DominanceStatus::DOMINATES;
+    }
+    if (rival_dominates_resources && rival_dominates_visited && rival.cost <= cost) {
+        return DominanceStatus::DOMINATED;
+    }
+    
     return DominanceStatus::INCOMPARABLE;
 }
 

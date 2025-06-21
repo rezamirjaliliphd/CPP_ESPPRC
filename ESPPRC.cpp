@@ -27,25 +27,25 @@ int main() {
     for (int i = 0; i < n; ++i) {
         for (int j = i + 1; j < n; ++j) {
             std::vector<double> randomResources(m);
-            if (i<6 && j==i+1){
-                randomResources = {1, 1, 1, 1, 1};
-                graph.addEdge(i, j, -1000, randomResources);
-                graph.addEdge(j, i, 1000, randomResources);
-            }
-            else if(i==6){
-                randomResources = {1, 1, 1, 1, 1};
-                graph.addEdge(i, 0, -1000, randomResources);     
-            }
-            else{
+            // if (i<6 && j==i+1){
+            //     randomResources = {1, 1, 1, 1, 1};
+            //     graph.addEdge(i, j, -1000, randomResources);
+            //     graph.addEdge(j, i, 1000, randomResources);
+            // }
+            // else if(i==6){
+            //     randomResources = {1, 1, 1, 1, 1};
+            //     graph.addEdge(i, 0, -1000, randomResources);     
+            // }
+            // else{
             for (int k = 0; k < m; ++k) {
                 randomResources[k] = ceil(static_cast<double>(std::rand()) / RAND_MAX * 4);
             }
-            double cost = (static_cast<double>(std::rand()) / RAND_MAX - 0.5) * 10+100;
+            double cost = (static_cast<double>(std::rand()) / RAND_MAX - 0.5) * 10;
             graph.addEdge(i, j, cost, randomResources);
             graph.addEdge(j, i, cost, randomResources);
         }
     }
-}
+
     // graph.display();
     
   
