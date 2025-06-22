@@ -27,23 +27,23 @@ Label::Label(Graph& graph, bool dir)
 }
 
 
-Label::Label(const Label& parent, Graph& graph, const Edge* edge, const double UB)
-    : path({0}), direction(parent.direction), cost(0),
-    resources(graph.num_res, 0), visited(0),checked_with(parent.checked_with) {
+Label::Label(const std::shared_ptr<Label>& parent_ptr, Graph& graph, const Edge* edge, const double UB)
+    : path({0}), direction(parent_ptr->direction), cost(parent_ptr->cost+edge->cost),
+    resources(parent_ptr->resources), visited(parent_ptr->visited),checked_with(parent_ptr->checked_with) {
     vertex = direction? edge->head:edge->tail;
-    cost = parent.cost + edge->cost;
-    path = parent.path;
+    path = parent_ptr->path;
     if (direction) {path.push_back(vertex);}else{path.insert(path.begin(), vertex);}
     
-    visited = (parent.visited | (1ULL << vertex));
+    visited |= (1ULL << vertex);
 
-    for (size_t i = 0; i < resources.size(); ++i) resources[i] = parent.resources[i]+edge->resources[i];
+    for (size_t i = 0; i < resources.size(); ++i) resources[i] += edge->resources[i];
     UpdateReachable(graph);
     UpdateLB(graph);
     
 
     if (reachHalfPoint(graph.res_max, graph.num_nodes)) {
-        status = LabelStatus::NEW_CLOSED;open = false;}
+        status = LabelStatus::NEW_CLOSED;
+        open = false;}
     else {
         status = LabelStatus::NEW_OPEN;
     }
@@ -131,44 +131,36 @@ void Label::display(Graph& graph) const {
     std::cout << "=========================\n\n";
 }
 
-DominanceStatus Label::DominanceCheck(const Label& rival) const {
-    if (vertex != rival.vertex || direction != rival.direction) 
-        return DominanceStatus::INCOMPARABLE;
+DominanceStatus Label::DominanceCheck(const std::shared_ptr<Label>& rival_ptr) const {
+    // if (vertex != rival_ptr->vertex || direction != rival_ptr->direction) 
+    //     return DominanceStatus::INCOMPARABLE;
     
     // Check resource dominance
-    bool this_dominates_resources = true;
-    bool rival_dominates_resources = true;
+    bool this_win = true;
+    bool rival_win = true;
     
     for (size_t i = 0; i < resources.size(); ++i) {
-        if (resources[i] > rival.resources[i]) this_dominates_resources = false;
-        if (rival.resources[i] > resources[i]) rival_dominates_resources = false;
+        if (resources[i] > rival_ptr->resources[i]) this_win = false;
+        if (rival_ptr->resources[i] > resources[i]) rival_win = false;
+        if (!this_win && !rival_win) {
+            return DominanceStatus::INCOMPARABLE; // Neither dominates
+        }
     }
     
     // Check visited set dominance (subset relationship)
-    bool this_dominates_visited = (visited & rival.visited) == visited; // this ⊆ rival
-    bool rival_dominates_visited = (visited & rival.visited) == rival.visited; // rival ⊆ this
-    
-    // Overall dominance check
-    if (this_dominates_resources && this_dominates_visited && cost <= rival.cost) {
-        return DominanceStatus::DOMINATES;
-    }
-    if (rival_dominates_resources && rival_dominates_visited && rival.cost <= cost) {
-        return DominanceStatus::DOMINATED;
-    }
-    
+    if (this_win && cost<=rival_ptr->cost && (visited & rival_ptr->visited) == visited ) return DominanceStatus::DOMINATES;  // this ⊆ rival
+    else if (rival_win && rival_ptr->cost <= cost && (rival_ptr->visited & visited) == rival_ptr->visited) return DominanceStatus::DOMINATED; // rival ⊆ this   
     return DominanceStatus::INCOMPARABLE;
 }
 
-bool Label::isConcatenable(const Label& label, const std::vector<double>& r_max) const {
-    if ((vertex != label.vertex) || (direction == label.direction)|| (checked_with.find(label.id) != checked_with.end())) {
-        return false;
-    }
+bool Label::isConcatenable(const std::shared_ptr<Label>& partner_ptr, const std::vector<double>& r_max) const {
+
     for (size_t i = 0; i < resources.size(); ++i) {
-        if (resources[i] + label.resources[i] > r_max[i]) {
+        if (resources[i] + partner_ptr->resources[i] > r_max[i]) {
             return false;
         }
     }
 
-    uint64_t common = (visited & label.visited)&~(1ULL << vertex) &~(1ULL<<0);
+    uint64_t common = (visited & partner_ptr->visited)&~(1ULL << vertex) &~(1ULL<<0);
     return common == 0;
 }

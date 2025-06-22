@@ -27,7 +27,7 @@ r = r.astype(np.float64)  # Ensure the array is of type double
 # print(r)
 # print("Graph created with the following parameters:")
 # # Create the graph
-g = PyGraph(r, r_max)
+
 # print("Graph created with the following parameters:")
 # # Optional: display graph info
 # print("Graph:")
@@ -77,24 +77,32 @@ def solve_with_gurobi():
     return path_make(edges), model.objVal
 # Run the label-setting algorithm
 import time 
-
+g = PyGraph(r, r_max)
 start_time_bls = time.time()
+print("Running BLS algorithm...")
+
 manager = PyLabelManager(g)
+print("manager created")
 
 manager.run()
+time_bls = time.time()-start_time_bls
 
-
-print("\nParsed Solutions:")
-print(f"Time taken with BLS: {time.time() - start_time_bls:.5f} seconds")
 solutions = manager.get_solutions()
+cost_bls = min(s[1] for s in solutions)
+path_bls = [s[0] for s in solutions if s[1] == cost_bls][0]
 # print(solutions)
 start_time_grb = time.time()
 p_grb,cost_grb = solve_with_gurobi()
-print(f"Time taken with Gurobi: {time.time() - start_time_grb:.5f} seconds")
-print(f"cost of Gurobi: {cost_grb}, cost of BLS: {solutions[-1][1]}")
-print(f"gurobipath: {p_grb}, blspath: {solutions[-1][0]}")
-if cost_grb != solutions[-1][1]:
+time_grb = time.time() - start_time_grb
+
+print(f"cost of Gurobi: {cost_grb}, cost of BLS: {cost_bls}")
+print(f"gurobipath: {p_grb}, blspath: {path_bls}")
+if cost_grb != cost_bls:
     print("Gurobi and BLS solutions differ in cost!")
+if time_bls < time_grb:
+    print(f"BLS is faster: {time_bls:.4f}s vs {time_grb:.4f}s by factor of {time_grb/time_bls:.2f}")
+else:
+    print(f"Gurobi is faster: {time_grb:.4f}s vs {time_bls:.4f}s by factor of {time_bls/time_grb:.2f}")
 # for idx, (path, cost) in enumerate(solutions):
 #     print(f"Solution {idx+1}: Path = {path}, Cost = {cost}")
 # print(f"gurobipath: {p_grb}, blspath: {solutions[-1][0]}")

@@ -40,18 +40,19 @@ public:
     uint64_t visited;
     std::unordered_set<long long> checked_with;
     bool direction;
+    bool deleted = false;
 
     double LB = -1000;
     LabelStatus status;
 
     Label(Graph& graph,bool dir);
-    Label(const Label& parent, Graph& graph, const Edge* edge, const double UB);
+    Label(const std::shared_ptr<Label>& parent_ptr, Graph& graph, const Edge* edge, const double UB);
 
     void UpdateReachable(Graph& graph);
     bool reachHalfPoint(const std::vector<double>& res_max, int num_nodes);
     void display(Graph& graph) const;
-    DominanceStatus DominanceCheck(const Label& rival) const;
-    bool isConcatenable(const Label& bw_label, const std::vector<double>& r_max) const;
+    DominanceStatus DominanceCheck(const std::shared_ptr<Label>& rival_ptr) const;
+    bool isConcatenable(const std::shared_ptr<Label>& partner_ptr, const std::vector<double>& r_max) const;
     void UpdateLB(Graph& graph);
 };
 
