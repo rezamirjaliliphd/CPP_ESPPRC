@@ -14,10 +14,11 @@ Label::Label(Graph& graph, bool dir)
     UpdateReachable(graph);
     UpdateLB(graph);
     if (reachHalfPoint(graph.res_max, graph.num_nodes)) {
-        status = LabelStatus::NEW_CLOSED;
+        status = LabelStatus::CLOSED;
+        open = false;
     }
     else {
-        status = LabelStatus::NEW_OPEN;
+        status = LabelStatus::OPEN;
     }
 
     if (LB > 100) {
@@ -42,13 +43,17 @@ Label::Label(const std::shared_ptr<Label>& parent_ptr, Graph& graph, const Edge*
     
 
     if (reachHalfPoint(graph.res_max, graph.num_nodes)) {
-        status = LabelStatus::NEW_CLOSED;
+        status = LabelStatus::CLOSED;
         open = false;}
     else {
-        status = LabelStatus::NEW_OPEN;
+        status = LabelStatus::OPEN;
     }
 
-    if (LB > UB) status = LabelStatus::DOMINATED;
+    if (LB > UB) {
+        status = LabelStatus::DOMINATED;
+        deleted = true;
+        open = false;
+    }
         //std::cout << "Pruned" << std::endl;
 }
 
@@ -84,18 +89,20 @@ void Label::UpdateLB(Graph& graph) {
     LB = cost;
     double lb = 0;
     int neighbor = -1;
+    uint64_t visited_ = visited &(~(1ULL << vertex)); // Exclude current vertex from visited set
     for (int i = 0; i < graph.num_nodes; i++) {
-        if (!(visited & (1ULL << i))||(i == vertex)) {
+        if (!(visited_ & (1ULL << i))) {
             lb = 0;
             for (const auto& e : direction? graph.OutList[i]: graph.InList[i]) {
                 neighbor = direction? e->head:e->tail;
-                if ( lb>e->cost && !(visited & (1ULL << neighbor))) lb = e->cost;
+                if ( lb>e->cost && !(visited_ & (1ULL << neighbor))) lb = e->cost;
             }
             if (lb < 0) LB += lb;
 
         }
     }
-    // LB = -1000000;
+    LB = -1000;
+    
 }
 
 

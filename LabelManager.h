@@ -53,7 +53,7 @@ public:
     std::unordered_map<int,bool> F_concat_need, B_concat_needed;
     LabelManager(Graph& graph);
     void HuristicUB(Graph& graph);
-    void DominanceCheckInsert(std::shared_ptr<Label>& label_ptr, Graph& graph);
+    // void DominanceCheckInsert(std::shared_ptr<Label>& label_ptr, Graph& graph);
     void displayLabels(Graph& graph) const;
     void concatenateLabels(const Graph& graph);
     void displaySolutions() const;

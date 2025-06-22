@@ -66,83 +66,119 @@ void LabelManager::Propagate(Graph& graph) {
 
     //if (labelHeap.front().status != LabelStatus::OPEN) return;
 	int neighbor;
-    
-    int vertex;
+    int vertex = -1;
+    DominanceStatus status;
     std::shared_ptr<Label> parenet_ptr , newLabel;
-    
-
     for (bool dir : {true, false}) {
-        std::vector<std::shared_ptr<Label>>& labelHeap= dir ? F_Open : B_Open;
-        // std::cout << "Direction: " << (dir ? "Forward" : "Backward") << std::endl;
-        // std::cout << "Open Labels: " << labelHeap.size() << std::endl;
-        if (labelHeap.empty()) continue;
-        std::pop_heap(labelHeap.begin(), labelHeap.end(), LabelPtrHeapComparator());  // Move best label to end
-        parenet_ptr = labelHeap.back();  // Store the best label
-        vertex = parenet_ptr->vertex;
-        std::set<std::shared_ptr<Label>, LabelPtrSetComparator>& labelSet = dir ? F_set[vertex] : B_set[vertex];
-        // std::cout << "Parent Label: " << std::endl;
-        // parenet_ptr->display(graph);
-        labelHeap.pop_back();  // Remove from heap
-        
-        // Step 2: Process the best label (propagate children labels)
-        for (const auto& edge : dir?graph.OutList[parenet_ptr->vertex]: graph.InList[parenet_ptr->vertex]) {
-            neighbor = dir ? edge->head : edge->tail;
-            
-            if (parenet_ptr->visited & (1ULL << neighbor)) continue;  // Skip if already visited
-            // std::cout << "Adding new vertex " << neighbor << std::endl;
-            // std::cout << "Neighbor: " << neighbor << std::endl;
-            newLabel= std::make_shared<Label>(parenet_ptr, graph, edge.get(), UB);  // Create new label
-            // std::cout << "New Label: " << std::endl;    
-            // newLabel->display(graph);
-            if (newLabel->status != LabelStatus::DOMINATED) DominanceCheckInsert(newLabel, graph);
+        std::vector<std::shared_ptr<Label>>& labelHeap= dir ? F_Open : B_Open;    
+        while (labelHeap.size()<=1000 && !labelHeap.empty()) {
+            std::pop_heap(labelHeap.begin(), labelHeap.end(), LabelPtrHeapComparator());  // Move best label to end
+            parenet_ptr = labelHeap.back();  // Store the best label
+            vertex = parenet_ptr->vertex;
+            labelHeap.pop_back();  // Remove from heap
+            for (const auto& edge : dir?graph.OutList[parenet_ptr->vertex]: graph.InList[parenet_ptr->vertex]) {
+                neighbor = dir ? edge->head : edge->tail;
+                if (parenet_ptr->visited & (1ULL << neighbor)) continue;  // Skip if already visited
+                newLabel= std::make_shared<Label>(parenet_ptr, graph, edge.get(), UB);  // Create new label
+                if (newLabel->deleted) continue;;  // Store in temporary heap
+                std::set<std::shared_ptr<Label>, LabelPtrSetComparator>& labelSet = dir ? F_set[neighbor] : B_set[neighbor];
+                if (labelSet.empty()){
+                    ID++;
+                    newLabel->id = ID;  // Assign new ID
+                    if (dir){
+                        F_concat_need[neighbor] = true;  // Mark as needing concatenation
+                    }else{
+                        B_concat_needed[neighbor] = true;  // Mark as needing concatenation
+                    }
+                    if (newLabel->open) labelHeap.push_back(newLabel);  // Add to heap if open
+                    labelSet.insert(newLabel);  // Insert into the set
+                }else{
+                    for (auto it=labelSet.begin(); it != labelSet.end(); ) {
+                        status = newLabel->DominanceCheck(*it);  // Check dominance
+                        if (status == DominanceStatus::DOMINATED) {
+                            newLabel->status = LabelStatus::DOMINATED;  // Mark as dominated
+                            newLabel->deleted = true;  // Mark as deleted
+                            break;  // Exit loop if dominated
+                        } else if (status == DominanceStatus::DOMINATES) { // New label dominates existing label
+                            if ((*it)->open) {
+                                // Remove dominated label from the heap
+                                labelHeap.erase(std::remove_if(labelHeap.begin(), labelHeap.end(),
+                                    [&](const std::shared_ptr<Label>& lptr) {
+                                        return lptr == (*it);
+                                    }), labelHeap.end());
+                            }
+                            it = labelSet.erase(it); // Remove dominated label from the set
+                            // std::cout << "New Label dominates label " << (*it)->id << std::endl;
+                        } else if (status == DominanceStatus::INCOMPARABLE) {
+                            ++it; // Keep the label in the set
+                        }
+                    }
+                    if (newLabel->deleted) continue;  // Skip if deleted
+                    ID++;
+                    newLabel->id = ID;  // Assign new ID
+                    newLabel->status = (newLabel->open) ? LabelStatus::OPEN : LabelStatus::CLOSED;  // Set status
+                    labelSet.insert(newLabel);  // Insert into the set
+                    if (dir){
+                        F_concat_need[neighbor] = true;  // Mark as needing concatenation
+                    }else{
+                        B_concat_needed[neighbor] = true;  // Mark as needing concatenation
+                    }
+                    if (newLabel->open) labelHeap.push_back(newLabel);  // Add to heap if open
+                }
+                
             }
-        // auto it = labelSet.find(parenet_ptr);
-        // if (it != labelSet.end()) labelSet.erase(it);
-    }
-        
-}
-
-
-void LabelManager::DominanceCheckInsert(std::shared_ptr<Label>& label_ptr, Graph& graph) {
-    int v = label_ptr->vertex;
-	std::vector<std::shared_ptr<Label>>& heap = label_ptr->direction ? F_Open : B_Open;
-    std::set<std::shared_ptr<Label>, LabelPtrSetComparator>& Set = label_ptr->direction ? F_set[v] : B_set[v];
-    //std::vector<Label> tempHeap;
-    
-    for (auto it = Set.begin(); it !=  Set.end(); ) {
-        DominanceStatus status = label_ptr->DominanceCheck(*it);
-        if (status == DominanceStatus::DOMINATED) {
-            label_ptr->status = LabelStatus::DOMINATED; // Mark label as dominated
-            label_ptr->deleted = true; // Mark label as deleted
-            // std::cout << "New Label is dominated by label " << (*it)->id << std::endl;
-            return;
-        }else if (status == DominanceStatus::DOMINATES) {//new label dominates existing label
-            auto dominated_label = *it; // Store the dominated label
-            it = Set.erase(it); // Remove dominated label
-            heap.erase(std::remove_if(heap.begin(), heap.end(),
-                [&](const std::shared_ptr<Label>& lptr) {
-                    return lptr->id == dominated_label->id;
-                }), heap.end());
-            // std::cout << "New Label dominates label " << (*it)->id << std::endl;
-        } else if (status == DominanceStatus::INCOMPARABLE) {
-            ++it; // Keep the label in the heap
+            labelHeap.erase(std::remove_if(labelHeap.begin(), labelHeap.end(),
+                    [](const std::shared_ptr<Label>& lptr) {
+                    return lptr->deleted;
+                    }), labelHeap.end());
+            std::make_heap(labelHeap.begin(), labelHeap.end(), LabelPtrHeapComparator());
         }
     }
+}
+        
+
+
+
+// void LabelManager::DominanceCheckInsert(std::shared_ptr<Label>& label_ptr, Graph& graph) {
+//     int v = label_ptr->vertex;
+// 	std::vector<std::shared_ptr<Label>>& heap = label_ptr->direction ? F_Open : B_Open;
+//     std::set<std::shared_ptr<Label>, LabelPtrSetComparator>& Set = label_ptr->direction ? F_set[v] : B_set[v];
+//     //std::vector<Label> tempHeap;
+    
+//     for (auto it = Set.begin(); it !=  Set.end(); ) {
+//         DominanceStatus status = label_ptr->DominanceCheck(*it);
+//         if (status == DominanceStatus::DOMINATED) {
+//             label_ptr->status = LabelStatus::DOMINATED; // Mark label as dominated
+//             label_ptr->deleted = true; // Mark label as deleted
+//             // std::cout << "New Label is dominated by label " << (*it)->id << std::endl;
+//             return;
+//         }else if (status == DominanceStatus::DOMINATES) {//new label dominates existing label
+//             auto dominated_label = *it; // Store the dominated label
+//             it = Set.erase(it); // Remove dominated label
+//             heap.erase(std::remove_if(heap.begin(), heap.end(),
+//                 [&](const std::shared_ptr<Label>& lptr) {
+//                     return lptr->id == dominated_label->id;
+//                 }), heap.end());
+//             // std::cout << "New Label dominates label " << (*it)->id << std::endl;
+//         } else if (status == DominanceStatus::INCOMPARABLE) {
+//             ++it; // Keep the label in the heap
+//         }
+//     }
 
     
-    label_ptr->status = (label_ptr->open) ? LabelStatus::OPEN : LabelStatus::CLOSED;
+//     label_ptr->status = (label_ptr->open) ? LabelStatus::OPEN : LabelStatus::CLOSED;
     
-    ID++;
-    label_ptr->id = ID;
-    Set.insert(label_ptr); // Insert into the set
-    if (label_ptr->open){
-        heap.push_back(label_ptr);
-        //std::cout << " Line 46" << std::endl;
+//     ID++;
+//     label_ptr->id = ID;
+//     Set.insert(label_ptr); // Insert into the set
+//     if (label_ptr->open){
+//         heap.push_back(label_ptr);
+//         //std::cout << " Line 46" << std::endl;
         
-    }
-    std::push_heap(heap.begin(), heap.end(), LabelPtrHeapComparator());    
-    label_ptr->direction? F_concat_need[label_ptr->vertex] = true : B_concat_needed[label_ptr->vertex] = true;
-}
+//     }
+//     std::push_heap(heap.begin(), heap.end(), LabelPtrHeapComparator());    
+//     label_ptr->direction? F_concat_need[label_ptr->vertex] = true : B_concat_needed[label_ptr->vertex] = true;
+// }
 
 
 
@@ -170,16 +206,17 @@ void LabelManager::concatenateLabels(const Graph& graph) {
     double ub = this->UB;
     for (int v = 1;v<graph.num_nodes; ++v){
         if (F_set.find(v) == F_set.end() || B_set.find(v) == B_set.end()) continue;
-        // if (F_set[v].empty() || B_set[v].empty()) continue;
-        // if ((*F_set[v].begin())->cost + (*B_set[v].begin())->cost >= ub) {
-        //     // std::cout << "Skipping vertex " << v << " as the best pair exceeds UB: " 
-        //     //           << (*F_set[v].begin())->cost + (*B_set[v].begin())->cost << " >= " << ub << std::endl;
-        //     continue; // Skip if the best pair exceeds UB
-        //     }
         for (auto fit = F_set[v].begin(); fit != F_set[v].end(); ++fit) {
+            std::cout << "Concatenating labels for vertex " << v << std::endl;
+           
+            if ((*fit)->cost + (*B_set[v].begin())->cost>= ub) {
+                std::cout << "Lower bound: " << ((*fit)->cost + (*B_set[v].begin())->cost) << " UB: " << ub << std::endl;
+                break;
+                 
+            } // Skip if the label cost exceeds UB
             for (auto bit = B_set[v].begin(); bit != B_set[v].end(); ++bit) {
             
-                // if ((*fit)->cost+(*bit)->cost >= ub) break; // Skip if the pair exceeds UB
+                if ((*fit)->cost+(*bit)->cost >= ub) break; // Skip if the pair exceeds UB
                 // else 
                 if ((*fit)->isConcatenable(*bit, graph.res_max)) {
                     // std::cout << "Concatenating labels for vertex " << v << std::endl;
@@ -189,23 +226,21 @@ void LabelManager::concatenateLabels(const Graph& graph) {
                     new_UB = true;
                     ub = cost_;
                     path = (*fit)->path;
-                    path.insert(path.end(), (*bit)->path.begin(), (*bit)->path.end());
+                    path.insert(path.end(), (*bit)->path.begin()+1, (*bit)->path.end());
                     solutions.push_back(Solution(path, cost_));
-                        // std::cout << "New solution found with cost: " << cost << std::endl;
+                    std::cout << "New solution found with cost: " << ub << std::endl;
                     }
-                    else if (cost_*0.9<=ub && cost_ > ub) {
-                        break;
-                    }
+                   
                 }
             
+            }
         }
-    }
     }
     if (new_UB) {
         this->UB = ub;
-        // std::cout << "New UB found: " << UB << std::endl;
+        std::cout << "New UB found: " << UB << std::endl;
+        PruneLabels(graph);
     }
-    if (new_UB) PruneLabels(graph);
 
     
 }
@@ -229,6 +264,11 @@ void LabelManager::PruneLabels(const Graph& graph) {
                 ++it;
             }
         }
+        labelHeap.erase(std::remove_if(labelHeap.begin(), labelHeap.end(),
+                [](const std::shared_ptr<Label>& lptr) {
+                    return lptr->deleted;
+                }), labelHeap.end());
+        std::make_heap(labelHeap.begin(), labelHeap.end(), LabelPtrHeapComparator());
         labelHeap.shrink_to_fit(); // Optional: shrink the vector to release unused memory
         for (int v=0; v<graph.num_nodes; ++v){
             std::set<std::shared_ptr<Label>, LabelPtrSetComparator>& labelSet = dir ? F_set[v] : B_set[v];
@@ -261,7 +301,7 @@ void LabelManager::Run(Graph& graph) {
         concatenateLabels(graph);
 
     }
-    // concatenateLabels(graph);
+    concatenateLabels(graph);
     // std::cout << "Heap Labels: " << std::endl;
     // displayLabels(graph);
     // displayLabels(graph);<
