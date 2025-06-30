@@ -101,7 +101,7 @@ void Label::UpdateLB(Graph& graph) {
 
         }
     }
-    LB = -1000;
+    // LB = -1000;
     
 }
 

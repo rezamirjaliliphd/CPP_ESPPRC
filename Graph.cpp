@@ -4,8 +4,8 @@
 #include <iostream>
 
 // Constructor
-Graph::Graph(int n, std::vector<double> r_max)
-    : OutList(n), InList(n), num_nodes(n), num_res(r_max.size()), res_max(r_max) {
+Graph::Graph(int n, std::vector<double> r_max, int phi_ID, std::vector<double>& pi)
+    : OutList(n), InList(n), num_nodes(n), num_res(r_max.size()), res_max(r_max),Pi(pi), phi_ID(phi_ID) {
 	OutList.resize(n);
     InList.resize(n);
     predecessor = std::vector<std::vector<bool>>(n, std::vector<bool>(n, false));

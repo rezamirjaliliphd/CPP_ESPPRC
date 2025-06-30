@@ -13,7 +13,7 @@ from libc.stdint cimport int64_t
 
 cdef extern from "Graph.h":
     cdef cppclass Graph:
-        Graph(int n, const vector[double]& r_max)
+        Graph(int n, const vector[double]& r_max, int Phi_ID, const vector[double]& pi)
         void addEdge(int t, int h, double cost, const vector[double]& resources)
         void display()
 
@@ -30,18 +30,21 @@ cdef extern from "LabelManager.h":
 cdef class PyGraph:
     cdef Graph* thisptr
 
-    def __cinit__(self, double[:,:,:] r, double[:] r_max):
+    def __cinit__(self, double[:,:,:] r, double[:] r_max, int Phi_ID, double[:] pi):
         cdef int n = r.shape[0]
-        cdef int n_res = r.shape[2] - 1
-        cdef vector[double] rmax_cpp
+        cdef int n_res = r.shape[2] - 1 
+        cdef vector[double] rmax_cpp, Pi
         cdef Graph* gtr
         cdef int i_, j_, k  # use different names here to avoid collision
         
         rmax_cpp.clear()
+        Pi.clear()
         for i_ in range(n_res):
             rmax_cpp.push_back(r_max[i_])
+        for i_ in range(Phi_ID, n_res):
+            Pi.push_back(pi[i_])
         
-        gtr = new Graph(n, rmax_cpp)
+        gtr = new Graph(n, rmax_cpp,Phi_ID, Pi)
         self.thisptr = gtr
         cdef double cost
         cdef vector[double] res

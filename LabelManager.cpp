@@ -198,7 +198,13 @@ void LabelManager::displayLabels(Graph& graph) const {
     
 }
 
-
+double calculateCost(const std::shared_ptr<Label>& L_1, const std::shared_ptr<Label>& L_2, const Graph& graph) {
+    double cost = L_1->cost + L_2->cost;
+    for (size_t i = graph.phi_ID; i < graph.num_res; ++i) {
+        cost += std::floor(L_1->resources[i] + L_2->resources[i])* graph.Pi[i-graph.phi_ID];
+    }
+    return cost;
+}
 void LabelManager::concatenateLabels(const Graph& graph) {
     std::vector<int> path;
     double cost_ = 0.0;
@@ -207,28 +213,28 @@ void LabelManager::concatenateLabels(const Graph& graph) {
     for (int v = 1;v<graph.num_nodes; ++v){
         if (F_set.find(v) == F_set.end() || B_set.find(v) == B_set.end()) continue;
         for (auto fit = F_set[v].begin(); fit != F_set[v].end(); ++fit) {
-            std::cout << "Concatenating labels for vertex " << v << std::endl;
+            // std::cout << "Concatenating labels for vertex " << v << std::endl;
            
-            if ((*fit)->cost + (*B_set[v].begin())->cost>= ub) {
-                std::cout << "Lower bound: " << ((*fit)->cost + (*B_set[v].begin())->cost) << " UB: " << ub << std::endl;
+            if (calculateCost(*fit, *B_set[v].begin(),graph)>= ub) {
+                // std::cout << "Lower bound: " << ((*fit)->cost + (*B_set[v].begin())->cost) << " UB: " << ub << std::endl;
                 break;
                  
             } // Skip if the label cost exceeds UB
             for (auto bit = B_set[v].begin(); bit != B_set[v].end(); ++bit) {
             
-                if ((*fit)->cost+(*bit)->cost >= ub) break; // Skip if the pair exceeds UB
+                if (calculateCost(*fit,*bit,graph) >= ub) break; // Skip if the pair exceeds UB
                 // else 
                 if ((*fit)->isConcatenable(*bit, graph.res_max)) {
                     // std::cout << "Concatenating labels for vertex " << v << std::endl;
                     
-                    cost_ = (*fit)->cost + (*bit)->cost;
+                    cost_ = calculateCost(*fit, *bit, graph);
                     if (cost_ < ub) { // Skip if the concatenated cost exceeds UB
                     new_UB = true;
                     ub = cost_;
                     path = (*fit)->path;
                     path.insert(path.end(), (*bit)->path.begin()+1, (*bit)->path.end());
                     solutions.push_back(Solution(path, cost_));
-                    std::cout << "New solution found with cost: " << ub << std::endl;
+                    // std::cout << "New solution found with cost: " << ub << std::endl;
                     }
                    
                 }
@@ -238,7 +244,7 @@ void LabelManager::concatenateLabels(const Graph& graph) {
     }
     if (new_UB) {
         this->UB = ub;
-        std::cout << "New UB found: " << UB << std::endl;
+        // std::cout << "New UB found: " << UB << std::endl;
         PruneLabels(graph);
     }
 

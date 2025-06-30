@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <cstdint>
 #include <intrin.h>
+#include <cmath>
 #pragma intrinsic(_popcnt64)
 
 struct LabelPtrSetComparator {
@@ -42,6 +43,7 @@ struct LabelPtrHeapComparator {
         if (a->id != b->id) return a->id > b->id; // Min-heap based on ID
     }
 };
+double calculateCost(const std::shared_ptr<Label>& L_1, const std::shared_ptr<Label>& L_2, const Graph& graph);
 
 class LabelManager {
 public:

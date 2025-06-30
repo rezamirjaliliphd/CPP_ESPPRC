@@ -22,11 +22,13 @@ public:
     int num_nodes;
     int num_res;
     int num_edges = 0;
-
+    int phi_ID = 2;
+    std::vector<double> Pi;
+    int max_nodes = 1000;
     std::vector<double> max_value;
     std::vector<double> res_max;
 
-    Graph(int n, std::vector<double> r_max);
+    Graph(int n, std::vector<double> r_max, int phi_ID, std::vector<double>& pi);
 
     void addEdge(int from, int to, double cost, const std::vector<double>& resources);
     const std::vector<std::shared_ptr<Edge>>& getNeighbors(int node, bool dir) const;
